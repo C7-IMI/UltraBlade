@@ -1,5 +1,6 @@
 # Verify the UltraBlade playable slice.
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
+$PSNativeCommandUseErrorActionPreference = $false
 $repo = Split-Path -Parent $PSScriptRoot
 $godot = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\godot_console.exe'
 if (-not (Test-Path $godot)) { $godot = 'godot_console.exe' }

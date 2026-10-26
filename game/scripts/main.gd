@@ -125,6 +125,8 @@ func get_matchup_label() -> String:
     return get_team_name(BLUE) + "  VS  " + get_team_name(RED)
 
 func _ready() -> void:
+    # Recover from any cursor hidden by a previous crashed Godot session.
+    _release_cursor()
     randomize()
     _parse_args()
     _load_scripts()
@@ -1516,7 +1518,26 @@ func _music(mode: String) -> void:
         audio.stop_music()
     # Goal and period-break cues keep the match bed under the horn; no extra track.
 
+func _notification(what: int) -> void:
+    # Never leave Windows with a captured/hidden cursor if the player closes or
+    # alt-tabs away from the window.
+    if what == NOTIFICATION_WM_CLOSE_REQUEST:
+        _release_cursor()
+        get_tree().quit()
+    elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+        _release_cursor()
+    elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+        _release_cursor()
+    elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+        if state in [COUNTDOWN, PLAYING, GOAL, PERIOD_BREAK]:
+            _set_mouse_captured(true)
+
+func _release_cursor() -> void:
+    if DisplayServer.get_name() != "headless":
+        Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
 func _exit_tree() -> void:
+    _release_cursor()
     Engine.time_scale = 1.0
     if audio:
         if audio.has_method("stop_all_sfx"):

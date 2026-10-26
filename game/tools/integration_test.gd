@@ -144,6 +144,19 @@ func _run() -> void:
     sk.action_lock = 0.0
     sk.try_slash(false)
     _check(enemy.hp < 100.0, "slash_hits")
+    await physics_frame
+    await physics_frame
+    _check(sk.model != null and sk.model.get_state() == "slash", "slash_animation_state")
+    _check(sk.model != null and sk.model.get_current_clip() == "sword_regular_a", "slash_animation_clip")
+    # The same animation must start from the real left-mouse input path.
+    sk.action_lock = 0.0
+    sk.slash_cd = 0.0
+    _mouse_left(true)
+    await physics_frame
+    await physics_frame
+    _check(sk.model != null and sk.model.get_state() == "slash", "lmb_starts_slash_animation")
+    _mouse_left(false)
+    await physics_frame
     # Hazard: a turnstile must damage a skater standing in it.
     main.state = 2
     sk.hp = 100.0

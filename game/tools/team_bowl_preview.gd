@@ -50,9 +50,25 @@ func _run() -> void:
 	var bank_path := dir + "/07-bank-ride.png"
 	var err2 := root.get_texture().get_image().save_png(bank_path)
 	print("TEAM_BOWL_CAPTURE bank=", bank_path, " err=", err2, " y=", sk.global_position.y, " surface=", main.get_surface_height(sk.global_position.x, sk.global_position.z))
+	# Capture the light-slash swing mid-animation.
+	main.camera_rig.distance = 4.4
+	main.camera_rig.height = 1.7
+	main.camera_rig.pitch = 0.10
+	for i in range(6):
+		await process_frame
+	sk.action_lock = 0.0
+	sk.slash_cd = 0.0
+	sk.try_slash(false)
+	for i in range(10):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var slash_path := dir + "/08-slash.png"
+	var err3 := root.get_texture().get_image().save_png(slash_path)
+	print("TEAM_BOWL_CAPTURE slash=", slash_path, " err=", err3, " state=", sk.model.get_state(), " clip=", sk.model.get_current_clip())
 	if main.audio != null:
 		main.audio.free()
 		main.audio = null
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	main.queue_free()
 	for i in range(3):
 		await process_frame

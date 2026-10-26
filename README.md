@@ -52,6 +52,8 @@ slight, and goalies carry heavy pads and blockers.
 
 ![Skater riding the banked bowl](docs/media/bank-ride.jpg)
 
+![Light slash: the jak arm swings through the attack](docs/media/slash.jpg)
+
 ![Team selection: Cobalt Kings vs Solar Kings](docs/media/team-select.jpg)
 
 ![Character lineup: striker, enforcer, runner, anchor, goalie](docs/media/characters.jpg)
@@ -79,6 +81,8 @@ slight, and goalies carry heavy pads and blockers.
 Volume and mix are also available in the pause menu: **MASTER**, **MUSIC** and **SFX** sliders. Settings are persisted to `user://settings.cfg` between runs.
 
 **The game starts muted by default.** Press `M` to unmute, or raise the master slider / press `]`.
+
+Closing the window or alt-tabbing releases mouse capture, and the game restores a visible cursor on exit.
 
 ![Pause audio mix](docs/media/pause.jpg)
 

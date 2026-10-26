@@ -83,6 +83,8 @@ var _shadow: MeshInstance3D
 var _fallback_body: Node3D
 var _anim_state = ""
 var _anim_speed = 0.0
+var _attack_anim := 0.0
+var _attack_heavy := false
 var _trail_timer = 0.0
 var _spawn_transform = Transform3D.IDENTITY
 
@@ -322,6 +324,7 @@ func _tick_timers(delta: float) -> void:
     heavy_cd = max(0.0, heavy_cd - delta)
     shoot_lock = max(0.0, shoot_lock - delta)
     action_lock = max(0.0, action_lock - delta)
+    _attack_anim = max(0.0, _attack_anim - delta)
     hit_flash = max(0.0, hit_flash - delta)
     invuln = max(0.0, invuln - delta)
     boost_fx = max(0.0, boost_fx - delta)
@@ -606,8 +609,8 @@ func _update_visual_state(delta: float) -> void:
     var st = "idle"
     if downed:
         st = "down"
-    elif action_lock > 0.25:
-        st = "slash" if heavy_cd <= 0.0 else "heavy"
+    elif _attack_anim > 0.0:
+        st = "heavy" if _attack_heavy else "slash"
     elif not _grounded:
         st = "jump"
     elif speed > 16.0:
@@ -682,11 +685,16 @@ func try_slash(heavy: bool) -> void:
             return
         heavy_cd = HEAVY_COOLDOWN
         action_lock = 0.38
+        _attack_anim = 0.62
+        _attack_heavy = true
     else:
         if slash_cd > 0.0:
             return
         slash_cd = SLASH_COOLDOWN
         action_lock = 0.22
+        _attack_anim = 0.47
+        _attack_heavy = false
+    _anim_state = ""
     if carrying:
         main.drop_puck(self, 1.0)
     slashed.emit(self, heavy)
@@ -788,6 +796,7 @@ func respawn(at: Transform3D) -> void:
     if model and model.has_method("play"):
         model.play("idle", 0.0)
     _anim_state = ""
+    _attack_anim = 0.0
     state_changed.emit(self)
 
 func celebrate() -> void:
@@ -817,6 +826,7 @@ func reset_round(at: Transform3D) -> void:
     action_lock = 0.2
     invuln = 0.8
     _grounded = true
+    _attack_anim = 0.0
     if model and model.has_method("play"):
         model.play("idle", 0.0)
     _anim_state = ""

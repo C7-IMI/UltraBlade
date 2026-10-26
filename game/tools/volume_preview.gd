@@ -44,6 +44,7 @@ func _run() -> void:
         main.audio = null
         for i in range(3):
             await process_frame
+    Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
     main.queue_free()
     for i in range(3):
         await process_frame

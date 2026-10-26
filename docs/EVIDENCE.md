@@ -24,7 +24,7 @@ quality claim beyond what is written here. Timestamps are local (America/Chicago
 | --- | --- | --- |
 | Headless boot/import | `godot_console.exe --headless --path game --import` | exit 0 |
 | Core selftest | `godot_console.exe --headless --path game -- --selftest` | exit 0; 18/18 checks; `ULTRABLADE_SELFTEST_OK checks=18 failures=[]` |
-| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **35/35** checks; `ULTRABLADE_INTEGRATION_OK checks=35 failures=[]`, no leak warnings on the final run |
+| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **38/38** checks; `ULTRABLADE_INTEGRATION_OK checks=38 failures=[]`, no leak warnings on the final run |
 | AI demo | `godot_console.exe --headless --path game -- --demo-seconds 8 --demo` | exit 0; `ULTRABLADE_DEMO_OK ... state=goal ... score=0-1 ... saw_pickup=true saw_shot=true saw_hit=true saw_goal=true` |
 
 The integration test boots the real `main.tscn`, injects synthetic keyboard/mouse input through
@@ -39,7 +39,9 @@ Godot's Input system, and checks:
 7. A real puck crossing the enemy goal plane increments the blue score and enters the goal state
    (no forced score call).
 8. The red goalie saves a centered shot.
-9. A slash damages an adjacent opponent.
+9. A slash damages an adjacent opponent and drives model state `slash` with clip
+   `sword_regular_a`; repeating the attack through the real LMB input path also starts the
+   animation (`lmb_starts_slash_animation`).
 10. A turnstile hazard damages a skater standing in its arc.
 11. Skating through the killball charger arms the puck.
 12. Pause/resume changes state.
@@ -72,9 +74,9 @@ Godot's Input system, and checks:
 ## Windowed presentation
 
 - `godot_console.exe --path game -- --capture` (windowed, Vulkan/Forward+, T600) → exit 0.
-- Seven 1600×900 PNGs written to `artifacts/captures/`:
+- Eight 1600×900 PNGs written to `artifacts/captures/`:
   `01-menu.png`, `02-gameplay.png`, `03-goal.png`, `04-broadcast.png`, `05-pause.png`,
-  `06-team-select.png`, `07-bank-ride.png`.
+  `06-team-select.png`, `07-bank-ride.png`, `08-slash.png`.
 - `godot_console.exe --path game -s res://tools/volume_preview.gd` (windowed) → exit 0;
   `05-pause.png` captures the pause **AUDIO MIX** with MASTER 65%, MUSIC 50%, SFX 80%;
   compressed as `docs/media/pause.jpg`.
@@ -83,10 +85,18 @@ Godot's Input system, and checks:
   in the README as `docs/media/characters.jpg`.
 - `godot_console.exe --path game -s res://tools/team_bowl_preview.gd` (windowed) → exit 0;
   `06-team-select.png` (Cobalt Kings vs Solar Kings) and `07-bank-ride.png` (controlled skater
-  at x=12, y=2.642 m). Compressed into `docs/media/team-select.jpg` and `docs/media/bank-ride.jpg`.
+  at x=12, y=2.642 m) and `08-slash.png` (close attack stance, state `slash`, clip
+  `sword_regular_a`). Compressed into `docs/media/team-select.jpg`, `bank-ride.jpg` and
+  `docs/media/slash.jpg`.
 - Volume/mix changes are saved to `user://settings.cfg` and applied to the Master/Music/SFX
   buses through `AudioDirector.set_volume/get_volume/set_muted`. Keyboard: `[` / `]` master,
   `M` mute.
+- **Window-close cursor release (hotfix):** launched the real windowed demo (`--demo`), confirmed the
+  OS cursor was hidden (`CURSORINFO.flags=0`) while mouse capture was active, then sent `WM_CLOSE`;
+  the process exited and `CURSORINFO.flags=1` (visible) afterwards. The game now releases the cursor
+  on `NOTIFICATION_WM_CLOSE_REQUEST`, on focus loss, in `_exit_tree`, and on startup recovery.
+- `scripts/verify_ultrablade.ps1` now tolerates Godot's harmless native-stderr leak warnings while
+  still evaluating every command exit code.
 - Compressed copies used in the README live in `docs/media/`.
 - The capture is evidence of presentation, not a subjective quality score.
 
@@ -107,8 +117,8 @@ Godot's Input system, and checks:
 - `build\UltraBlade.exe --headless -- --selftest` → exit 0; same 18/18 marker.
 - The export uses the pinned 4.7.2 Windows Desktop template from this machine.
 
-Final export: **124,313,760 bytes**, SHA-256
-`7FF9BC1B829BB9E2B1302FD6E4ED0D52490B9773043EF954E720536F39C321EE` (2026-10-26, elliptical-bowl + team-diversity rebuild).
+Final export: **124,314,976 bytes**, SHA-256
+`9BCB5C37B7CC1831064F37291FA7F1FEBD6E388053194D0366BA32489B3AF474` (2026-10-26, elliptical-bowl + team-diversity + slash-animation + cursor-release rebuild).
 The exported binary was also run windowed in capture mode, and wrote the 1600×900 presentation
 PNGs, proving that the packaged project loads its bowl arena, skater models, audio and HUD outside
 the editor.
