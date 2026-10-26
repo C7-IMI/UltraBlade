@@ -8,8 +8,8 @@ var target: Node3D
 var mode = "menu"
 var yaw = PI
 var pitch = 0.24
-var distance = 7.4
-var height = 3.0
+var distance = 6.6
+var height = 2.7
 var sensitivity = 0.0024
 var fov_base = 76.0
 var fov_target = 76.0

@@ -24,7 +24,7 @@ quality claim beyond what is written here. Timestamps are local (America/Chicago
 | --- | --- | --- |
 | Headless boot/import | `godot_console.exe --headless --path game --import` | exit 0 |
 | Core selftest | `godot_console.exe --headless --path game -- --selftest` | exit 0; 18/18 checks; `ULTRABLADE_SELFTEST_OK checks=18 failures=[]` |
-| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **38/38** checks; `ULTRABLADE_INTEGRATION_OK checks=38 failures=[]`, no leak warnings on the final run |
+| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **42/42** checks; `ULTRABLADE_INTEGRATION_OK checks=42 failures=[]`; includes skate state/clip, LMB slash animation, glide coast and bank landing |
 | AI demo | `godot_console.exe --headless --path game -- --demo-seconds 8 --demo` | exit 0; `ULTRABLADE_DEMO_OK ... state=goal ... score=0-1 ... saw_pickup=true saw_shot=true saw_hit=true saw_goal=true` |
 
 The integration test boots the real `main.tscn`, injects synthetic keyboard/mouse input through
@@ -46,9 +46,11 @@ Godot's Input system, and checks:
 11. Skating through the killball charger arms the puck.
 12. Pause/resume changes state.
 13. Both enemy forwards down + a goal flags annihilation and ends the match.
-14. The pause menu has three audio sliders; moving MASTER updates the setting and the real
+14. The player enters `skate` state with clip `skate`, sustains momentum after input release
+    (`skates_glide_coast`) and builds speed (`skates_build_speed`).
+15. The pause menu has three audio sliders; moving MASTER updates the setting and the real
     AudioServer master bus to ~0.55.
-15. MUSIC is applied to its bus and persisted; the mute toggle toggles the real master bus.
+16. MUSIC is applied to its bus and persisted; the mute toggle toggles the real master bus.
 
 ## Drome / video reference pass
 
@@ -65,18 +67,21 @@ Godot's Input system, and checks:
   skater_lands_on_bank and bowl_bank_normal checks pass.
 - Captures: 07-bank-ride.png has the controlled skater at x=12, y=2.642 m with team-coloured
   Cobalt Kings vs Solar Kings HUD; 06-team-select.png shows the title-screen squad selector.
+- **Inline skating:** a generated 21st animation (`skate`) replaces the stock run for `skate` and
+  `sprint`; four glowing wheels per boot; no-input drag is 3.0 m/s² (coast) while opposing input
+  brakes at 30 m/s². Integration checks the clip/state and that momentum survives release.
 
 ## Repository hygiene
 
-- `python scripts/check_repo.py` → **PASS**: 143 UTF-8 text files with no BOM and no CR; 64 binary
-  files skipped; 18 relative Markdown links resolve; `CHECK_REPO_OK`.
+- `python scripts/check_repo.py` → **PASS**: 143 UTF-8 text files with no BOM and no CR; 68 binary
+  files skipped; 21 relative Markdown links resolve; `CHECK_REPO_OK`.
 
 ## Windowed presentation
 
 - `godot_console.exe --path game -- --capture` (windowed, Vulkan/Forward+, T600) → exit 0.
-- Eight 1600×900 PNGs written to `artifacts/captures/`:
-  `01-menu.png`, `02-gameplay.png`, `03-goal.png`, `04-broadcast.png`, `05-pause.png`,
-  `06-team-select.png`, `07-bank-ride.png`, `08-slash.png`.
+- Ten 1600×900 PNGs written to `artifacts/captures/`:
+  `01-menu.png` … `08-slash.png`, `09-skate.png` (in-match skate cycle),
+  `10-skate-close.png` (close-up wheels/pose).
 - `godot_console.exe --path game -s res://tools/volume_preview.gd` (windowed) → exit 0;
   `05-pause.png` captures the pause **AUDIO MIX** with MASTER 65%, MUSIC 50%, SFX 80%;
   compressed as `docs/media/pause.jpg`.
@@ -85,9 +90,9 @@ Godot's Input system, and checks:
   in the README as `docs/media/characters.jpg`.
 - `godot_console.exe --path game -s res://tools/team_bowl_preview.gd` (windowed) → exit 0;
   `06-team-select.png` (Cobalt Kings vs Solar Kings) and `07-bank-ride.png` (controlled skater
-  at x=12, y=2.642 m) and `08-slash.png` (close attack stance, state `slash`, clip
-  `sword_regular_a`). Compressed into `docs/media/team-select.jpg`, `bank-ride.jpg` and
-  `docs/media/slash.jpg`.
+  at x=12, y=2.642 m), `08-slash.png` (close attack stance, state `slash`, clip
+  `sword_regular_a`), `09-skate.png`/`10-skate-close.png` (state/clip `skate`). Compressed into
+  `docs/media/team-select.jpg`, `bank-ride.jpg`, `slash.jpg`, `skate.jpg`.
 - Volume/mix changes are saved to `user://settings.cfg` and applied to the Master/Music/SFX
   buses through `AudioDirector.set_volume/get_volume/set_muted`. Keyboard: `[` / `]` master,
   `M` mute.
@@ -105,7 +110,7 @@ Godot's Input system, and checks:
 | Subsystem | Exact command | Observed result |
 | --- | --- | --- |
 | Arena builder | `godot_console.exe --headless --path game res://tools/arena_preview.tscn -- --selftest` | exit 0, empty stderr; `ARENA_SELFTEST_OK`; **36/36 checks**; **31 draws, 29,356 tris, 10 lights, 1,340 crowd instances, static_bodies=9, shapes=51**; true elliptical outline; curved `IceFloor` bowl AABB height > 2 m; goal areas at z=−30.5/+30.5; 4 spawn transforms per side; 4 boost pads; 4 hazards; bounds 16/30; no floor collider (match layer owns it) |
-| ActionForge skater integration | `godot_console.exe --headless --path game -s res://tools/skater_preview.gd` | exit 0, empty stderr; `SKATER_SELFTEST_PASS checks=93`; 20 clips; cold library 37.5 ms, cached 0.001 ms; per-model build 2.8–6.8 ms; 24 renderables/skater; 11 root-motion clips stripped. Combat-idle stance uses `sword_idle`; measured heights 1.88–1.94 m after the aggressive silhouette pass. |
+| ActionForge skater integration | `godot_console.exe --headless --path game -s res://tools/skater_preview.gd` | exit 0, empty stderr; `SKATER_SELFTEST_PASS checks=94`; 21 clips (20 ActionForge + generated inline-skate cycle); 24 renderables/skater; 11 root-motion clips stripped. `skate`/`sprint` use the generated cycle; measured heights 1.88–1.94 m. |
 | ActionForge skater preview scene | `godot_console.exe --headless --path game --quit-after 120 res://tools/skater_preview.tscn` | exit 0 |
 | Procedural audio | `godot_console.exe --headless --path game -s res://tools/audio_preview.gd` | `[AUDIO_PREVIEW] checks=121 fails=0`, `UB_AUDIO_PREVIEW_OK`, exit 0; 31 WAVs / 12.26 MB; 44.1 kHz 16-bit PCM; loops tagged forward |
 | Audio generation | `python tools/generate_audio.py --verify-only` | `VERIFY 31 assets, 12.26 MB ... PASS` |
@@ -117,8 +122,8 @@ Godot's Input system, and checks:
 - `build\UltraBlade.exe --headless -- --selftest` → exit 0; same 18/18 marker.
 - The export uses the pinned 4.7.2 Windows Desktop template from this machine.
 
-Final export: **124,314,976 bytes**, SHA-256
-`9BCB5C37B7CC1831064F37291FA7F1FEBD6E388053194D0366BA32489B3AF474` (2026-10-26, elliptical-bowl + team-diversity + slash-animation + cursor-release rebuild).
+Final export: **124,319,008 bytes**, SHA-256
+`6F6D1860A49842FAE30C52E5D8C26A8D8D73967EBA7C57350A9ED23F984D8BEE` (2026-10-26, elliptical bowl + teams + slash/cursor fixes + inline-skating rebuild).
 The exported binary was also run windowed in capture mode, and wrote the 1600×900 presentation
 PNGs, proving that the packaged project loads its bowl arena, skater models, audio and HUD outside
 the editor.

@@ -79,6 +79,13 @@ func _run() -> void:
         _key(KEY_W, false)
         await physics_frame
         _check(sk.global_position.distance_to(start) > 1.5, "wasd_moves_player")
+        var coast_speed := Vector2(sk.velocity.x, sk.velocity.z).length()
+        for i in range(20):
+            await physics_frame
+        _check(Vector2(sk.velocity.x, sk.velocity.z).length() > 6.0, "skates_glide_coast")
+        _check(coast_speed > 6.0, "skates_build_speed")
+        _check(sk.model != null and sk.model.get_state() == "skate", "player_uses_skate_state")
+        _check(sk.model != null and sk.model.get_current_clip() == "skate", "player_uses_skate_cycle")
         # Land a skater on the skateable bank and verify the height-field snap.
         var bank_y: float = main.get_surface_height(11.5, 0.0)
         sk.global_position = Vector3(11.5, bank_y + 1.6, 0.0)
@@ -164,8 +171,10 @@ func _run() -> void:
     sk.invuln = 0.0
     sk.global_position = Vector3(8.6, 0.0, 0.0)
     sk.velocity = Vector3.ZERO
+    main.puck.set_physics_process(false)
     for i in range(140):
         await physics_frame
+    main.puck.set_physics_process(true)
     _check(sk.hp < 100.0, "turnstile_hazard_damages")
     sk.hp = 100.0
     # Killball charger: carry the rok over the arena's charger.

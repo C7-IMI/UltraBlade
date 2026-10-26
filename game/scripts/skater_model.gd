@@ -3,7 +3,7 @@ extends Node3D
 
 ## ULTRABLADE skater.
 ##
-## Wraps the ActionForge CC0 mannequin rig (71 bones) plus 20 CC0 clips and dresses
+## Wraps the ActionForge CC0 mannequin rig (71 bones) plus 20 source clips, a generated inline-skate cycle and dresses
 ## the rig as a hockey gladiator with procedural armour, helmet + visor, skates, an
 ## oversized left-hand jak and a team glow. The root sits at the skater's feet
 ## (ice contact), the skater reads ~1.9 m tall and faces Godot -Z.
@@ -72,15 +72,15 @@ const CLIP_FILES := {
 }
 
 ## Clips that loop; everything else is a one-shot (LOOP_NONE).
-const LOOP_CLIPS := ["idle", "walk", "jog_fwd", "sprint", "slide", "jump", "sword_idle"]
+const LOOP_CLIPS := ["idle", "walk", "jog_fwd", "sprint", "slide", "jump", "sword_idle", "skate"]
 
 ## Contract state -> clip key. Extra aliases are provided for the Lead's convenience.
 const STATE_CLIP := {
 	# Combat-ready stance; the plain idle reads too passive for the drome.
 	"idle": "sword_idle",
 	"walk": "walk",
-	"skate": "jog_fwd",
-	"sprint": "sprint",
+	"skate": "skate",
+	"sprint": "skate",
 	"slide": "slide",
 	"slash": "sword_regular_a",
 	"heavy": "sword_attack",
@@ -153,6 +153,7 @@ var _locomotion_state := "idle"
 var _locomotion_speed := 0.0
 var _lean := 0.0
 var _terrain_roll := 0.0
+var _skate_lean := 0.0
 var _surface_normal := Vector3.UP
 var _pending_state := ""
 var _pending_speed := 0.0
@@ -172,6 +173,79 @@ var _build_ms := 0.0
 # =============================================================================
 # Shared AnimationLibrary
 # =============================================================================
+
+static func _add_skating_clip(lib: AnimationLibrary) -> void:
+	# ActionForge's stock locomotion is a run. Build one procedural inline-skating
+	# cycle from the sword-ready stance so UltimateBlade reads as gliding, not jogging.
+	var base := lib.get_animation("sword_idle")
+	if base == null:
+		return
+	var anim := base.duplicate(true) as Animation
+	var selected := ["thigh_l", "thigh_r", "calf_l", "calf_r", "foot_l", "foot_r", "upperarm_r", "lowerarm_r"]
+	# Use the neutral idle leg pose as the root of the skate cycle: the sword
+	# stance is staggered, while a skater needs both wheels under the hips.
+	var neutral := lib.get_animation("idle")
+	var neutral_q := {}
+	if neutral != null:
+		for neutral_track in neutral.get_track_count():
+			var neutral_path := neutral.track_get_path(neutral_track)
+			var neutral_bone := String(neutral_path.get_concatenated_subnames())
+			if selected.has(neutral_bone) and neutral.track_get_type(neutral_track) == Animation.TYPE_ROTATION_3D:
+				neutral_q[neutral_bone] = neutral.track_get_key_value(neutral_track, 0)
+	var base_q := {}
+	var base_path := {}
+	for track_idx in range(anim.get_track_count() - 1, -1, -1):
+		var track_path := anim.track_get_path(track_idx)
+		var bone := String(track_path.get_concatenated_subnames())
+		if not selected.has(bone):
+			continue
+		if anim.track_get_type(track_idx) != Animation.TYPE_ROTATION_3D:
+			continue
+		base_q[bone] = neutral_q.get(bone, anim.track_get_key_value(track_idx, 0))
+		base_path[bone] = track_path
+		anim.remove_track(track_idx)
+	anim.length = 1.08
+	anim.loop_mode = Animation.LOOP_LINEAR
+	var phases := [0.0, 0.25, 0.5, 0.75, 1.0]
+	for bone in selected:
+		if not base_q.has(bone):
+			continue
+		var track_idx := anim.add_track(Animation.TYPE_ROTATION_3D)
+		anim.track_set_path(track_idx, base_path[bone])
+		anim.track_set_interpolation_type(track_idx, Animation.INTERPOLATION_CUBIC)
+		var base_quat: Quaternion = (base_q[bone] as Quaternion).normalized()
+		for phase in phases:
+			var c := cos(TAU * phase)
+			var x := 0.0
+			var z := 0.0
+			match bone:
+				"thigh_l":
+					x = 0.10 * c
+					z = -0.14 - 0.16 * c
+				"thigh_r":
+					x = -0.10 * c
+					z = 0.14 - 0.16 * c
+				"calf_l":
+					x = 0.12 - 0.08 * c
+				"calf_r":
+					x = 0.12 + 0.08 * c
+				"foot_l", "foot_r":
+					z = 0.0
+				"upperarm_r":
+					x = 0.18 * sin(TAU * phase)
+				"lowerarm_r":
+					x = 0.08 * sin(TAU * phase)
+			var q := base_quat * Quaternion(Vector3.RIGHT, x) * Quaternion(Vector3.BACK, z)
+			anim.rotation_track_insert_key(track_idx, phase, q)
+	lib.add_animation("skate", anim)
+	_clip_meta["skate"] = {
+		"file": "procedural",
+		"source_animation": "inline_skate_cycle",
+		"length": anim.length,
+		"loop": true,
+		"tracks": anim.get_track_count(),
+		"root_motion_stripped": {},
+	}
 
 ## Builds (once per process) the shared AnimationLibrary from the 20 clip GLBs.
 ## Track paths are already "Armature/Skeleton3D:bone", so adding the library to an
@@ -220,6 +294,8 @@ static func ensure_library() -> AnimationLibrary:
 		if not stripped.is_empty():
 			_root_motion_report[clip_name] = stripped
 		instance.free()
+	if not lib.get_animation_list().is_empty():
+		_add_skating_clip(lib)
 	if lib.get_animation_list().is_empty():
 		_library_error = "no animations could be built"
 		push_error("SkaterModel: " + _library_error)
@@ -290,6 +366,9 @@ func _ready() -> void:
 ## Contract: configure colour/role/star. Safe before or after add_child().
 func set_surface_normal(normal: Vector3) -> void:
 	_surface_normal = normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
+
+func set_skate_lean(lean: float) -> void:
+	_skate_lean = lean
 
 func set_team_color(new_color: Color) -> void:
 	if _team_color.is_equal_approx(new_color):
@@ -870,10 +949,15 @@ func _build_legs(style: Dictionary) -> void:
 			_part(_box(Vector3(0.022, 0.035, 0.360)), Vector3(0.0, -0.105, 0.080)),
 		]
 		_add_merged_piece(foot_bone, boot_parts, _mats["armour_dark"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.100, 0.045)))
+		# Futuristic inline skate: a slim frame with four glowing wheels.
 		var blade_parts := [
-			_part(_box(Vector3(0.024, 0.045, 0.460)), Vector3(0.0, -0.130, 0.090)),
-			_part(_box(Vector3(0.018, 0.032, 0.070)), Vector3(0.0, -0.130, 0.325), Basis(Vector3.RIGHT, 0.20)),
+			_part(_box(Vector3(0.028, 0.030, 0.345)), Vector3(0.0, -0.098, 0.080)),
+			_part(_box(Vector3(0.070, 0.022, 0.070)), Vector3(0.0, -0.070, -0.085)),
+			_part(_box(Vector3(0.018, 0.030, 0.060)), Vector3(0.0, -0.145, 0.270), Basis(Vector3.RIGHT, 0.18)),
 		]
+		var wheel_axis := Basis(Vector3.BACK, PI * 0.5)
+		for wheel_z in [-0.035, 0.075, 0.185, 0.285]:
+			blade_parts.append(_part(_cyl(0.043, 0.043, 0.052), Vector3(0.0, -0.145, wheel_z), wheel_axis))
 		_add_merged_piece(foot_bone, blade_parts, _mats["blade"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.100, 0.045)))
 
 func _build_jak(style: Dictionary) -> void:
@@ -1098,7 +1182,7 @@ func _process(delta: float) -> void:
 	if _boosting:
 		target_lean -= 0.035
 	_lean = lerpf(_lean, target_lean, clampf(delta * 6.0, 0.0, 1.0))
-	var target_roll := clampf(_surface_normal.x * 0.85, -0.55, 0.55)
+	var target_roll := clampf(_surface_normal.x * 0.85, -0.55, 0.55) + _skate_lean
 	_terrain_roll = lerpf(_terrain_roll, target_roll, clampf(delta * 7.0, 0.0, 1.0))
 	_rig.rotation.x = _lean
 	_rig.rotation.z = _terrain_roll
@@ -1138,9 +1222,7 @@ func _apply_state(p_state: String, speed_ratio: float) -> void:
 
 func _resolve_clip(p_state: String, speed_ratio: float) -> String:
 	if p_state == "skate":
-		if speed_ratio < 0.28:
-			return "walk"
-		return "jog_fwd"
+		return "skate"
 	return STATE_CLIP.get(p_state, "")
 
 func _clip_for_state(p_state: String) -> String:

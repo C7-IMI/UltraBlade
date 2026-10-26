@@ -48,9 +48,18 @@ shoulder blades, spiked crown helmets, slit visors, long serrated jaks and low, 
 stances. Role builds exaggerate the silhouette — enforcers are broader and caged, runners are
 slight, and goalies carry heavy pads and blockers.
 
+**Inline skating is the movement model.** Each skater wears four glowing futuristic wheels per
+boot and uses a procedural skating cycle rather than a run: pushes alternate out to the side,
+the body stays low and edges into turns, and momentum carries between strokes. Releasing the
+movement keys coasts instead of stopping dead; opposing input brakes hard.
+
 ![Gameplay in THE VAULT](docs/media/gameplay.jpg)
 
 ![Skater riding the banked bowl](docs/media/bank-ride.jpg)
+
+![Inline skating in THE VAULT](docs/media/skate.jpg)
+
+![Skate cycle phases: side push, glide, glowing wheels](docs/media/skate-cycle.jpg)
 
 ![Light slash: the jak arm swings through the attack](docs/media/slash.jpg)
 

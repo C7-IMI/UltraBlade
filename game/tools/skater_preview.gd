@@ -7,7 +7,7 @@ extends SceneTree
 ## Windowed capture, writes artifacts/skater/*.png:
 ##   godot --path game -s res://tools/skater_preview.gd -- --capture
 ##
-## The self-test also proves: 20-clip shared AnimationLibrary, root motion stripped,
+## The self-test also proves: 21-clip shared AnimationLibrary (20 ActionForge + procedural skate), root motion stripped,
 ## loops configured, 71-bone rig, ~1.9 m height with feet at y=0, rig facing -Z,
 ## BoneAttachment3D armour following the animated skeleton, contract states mapping
 ## to the expected clips, speed_ratio scaling, carrying/boost toggles and burst VFX
@@ -49,7 +49,7 @@ func _run_selftest(world: Node3D) -> void:
 	var cold_ms := float(Time.get_ticks_usec() - started) / 1000.0
 	_check(library != null, "AnimationLibrary built")
 	var clip_names := library.get_animation_list()
-	_check(clip_names.size() == 20, "20 clips in shared library (got " + str(clip_names.size()) + ")")
+	_check(clip_names.size() == 21, "21 clips in shared library (got " + str(clip_names.size()) + ")")
 	var root_position_tracks := 0
 	for clip_name in clip_names:
 		var anim := library.get_animation(clip_name)
@@ -110,7 +110,7 @@ func _run_selftest(world: Node3D) -> void:
 	var animation_player := reference.get_animation_player()
 	_check(animation_player != null, "AnimationPlayer present")
 	if animation_player != null:
-		_check(animation_player.get_animation_list().size() == 20, "AnimationPlayer has 20 animations")
+		_check(animation_player.get_animation_list().size() == 21, "AnimationPlayer has 21 animations")
 
 	# --- 3. Structure, height, feet, draw calls -------------------------------
 	for model in models:
@@ -162,8 +162,8 @@ func _run_selftest(world: Node3D) -> void:
 	if animation_player != null:
 		var expected_states := {
 			"idle": "sword_idle",
-			"skate": "jog_fwd",
-			"sprint": "sprint",
+			"skate": "skate",
+			"sprint": "skate",
 			"slash": "sword_regular_a",
 			"heavy": "sword_attack",
 			"hit": "hit_chest",
@@ -178,7 +178,7 @@ func _run_selftest(world: Node3D) -> void:
 			_check(actual_clip == expected_clip, "state " + String(state) + " -> " + expected_clip + " (got " + actual_clip + ")")
 			_check(reference.get_state() == String(state), "state getter " + String(state))
 		reference.play("skate", 0.05)
-		_check(String(animation_player.current_animation) == "walk", "low speed skate uses walk clip")
+		_check(String(animation_player.current_animation) == "skate", "low speed skate uses skate cycle")
 		reference.play("skate", 0.95)
 		var fast_speed := animation_player.get_playing_speed()
 		reference.play("skate", 0.15)

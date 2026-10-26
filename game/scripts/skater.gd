@@ -15,10 +15,12 @@ signal state_changed(skater)
 const TEAM_BLUE = 0
 const TEAM_RED = 1
 
-const BASE_SPEED = 11.5
+const BASE_SPEED = 12.8
 const BOOST_MULT = 1.62
-const ACCELERATION = 30.0
-const TURN_RATE = 12.0
+const ACCELERATION = 24.0
+const TURN_RATE = 10.0
+const GLIDE_DRAG = 3.0
+const SKATE_BRAKE = 30.0
 const GRAVITY = 24.0
 const JUMP_SPEED = 8.2
 const MAX_HP = 100.0
@@ -536,10 +538,18 @@ func _apply_movement(delta: float) -> void:
         desired_speed *= 0.55
     if charging:
         desired_speed *= 0.72
+    var has_input: bool = move_input.length() > 0.05
     var target_velocity = move_input.normalized() * desired_speed
     var hv = Vector3(velocity.x, 0.0, velocity.z)
-    var accel = ACCELERATION if move_input.length() > 0.05 else ACCELERATION * 0.8
-    hv = hv.move_toward(target_velocity, accel * delta)
+    if has_input:
+        # Push into the glide; moving against your momentum brakes harder.
+        var accel := ACCELERATION
+        if hv.dot(target_velocity) < 0.0:
+            accel = SKATE_BRAKE
+        hv = hv.move_toward(target_velocity, accel * delta)
+    else:
+        # Inline skates keep rolling: coast with low drag instead of stopping dead.
+        hv = hv.move_toward(Vector3.ZERO, GLIDE_DRAG * delta)
     velocity.x = hv.x
     velocity.z = hv.z
     if jump_requested and _grounded:
@@ -574,14 +584,19 @@ func _apply_movement(delta: float) -> void:
             model.set_surface_normal(main.get_surface_normal(global_position.x, global_position.z))
         else:
             model.set_surface_normal(Vector3.UP)
-    if move_input.length() > 0.15:
-        var desired_yaw = atan2(-move_input.x, -move_input.z)
-        rotation.y = lerp_angle(rotation.y, desired_yaw, minf(1.0, TURN_RATE * delta))
+    var target_yaw := rotation.y
+    if has_input:
+        target_yaw = atan2(-move_input.x, -move_input.z)
+        rotation.y = lerp_angle(rotation.y, target_yaw, minf(1.0, TURN_RATE * delta))
     elif carrying:
         var d = aim_dir
         d.y = 0.0
         if d.length() > 0.01:
-            rotation.y = lerp_angle(rotation.y, atan2(-d.x, -d.z), minf(1.0, 10.0 * delta))
+            target_yaw = atan2(-d.x, -d.z)
+            rotation.y = lerp_angle(rotation.y, target_yaw, minf(1.0, 10.0 * delta))
+    var steer := wrapf(target_yaw - rotation.y, -PI, PI)
+    if model and model.has_method("set_skate_lean"):
+        model.set_skate_lean(clampf(-steer * 1.8, -0.32, 0.32) if has_input else 0.0)
     facing = Vector3(-sin(rotation.y), 0.0, -cos(rotation.y)).normalized()
 
 func _clamp_to_drome() -> void:

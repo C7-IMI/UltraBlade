@@ -65,6 +65,40 @@ func _run() -> void:
 	var slash_path := dir + "/08-slash.png"
 	var err3 := root.get_texture().get_image().save_png(slash_path)
 	print("TEAM_BOWL_CAPTURE slash=", slash_path, " err=", err3, " state=", sk.model.get_state(), " clip=", sk.model.get_current_clip())
+	# Capture the actual in-match skating loop with the player pushing forward.
+	main.camera_rig.distance = 7.4
+	main.camera_rig.height = 3.0
+	main.camera_rig.pitch = 0.24
+	main.camera_rig.yaw = PI
+	sk.global_position = Vector3(0.0, main.get_surface_height(0.0, 0.0), -2.0)
+	sk.velocity = Vector3.ZERO
+	sk._grounded = true
+	var ev_down := InputEventKey.new()
+	ev_down.physical_keycode = KEY_W
+	ev_down.keycode = KEY_W
+	ev_down.pressed = true
+	Input.parse_input_event(ev_down)
+	for i in range(32):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var skate_path := dir + "/09-skate.png"
+	var err4 := root.get_texture().get_image().save_png(skate_path)
+	var ev_up := InputEventKey.new()
+	ev_up.physical_keycode = KEY_W
+	ev_up.keycode = KEY_W
+	ev_up.pressed = false
+	Input.parse_input_event(ev_up)
+	print("TEAM_BOWL_CAPTURE skate=", skate_path, " err=", err4, " state=", sk.model.get_state(), " clip=", sk.model.get_current_clip(), " speed=", sk.velocity.length())
+	# Close-up of the inline-skate cycle and glowing wheels.
+	main.camera_rig.distance = 3.2
+	main.camera_rig.height = 1.7
+	main.camera_rig.pitch = 0.10
+	for i in range(10):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var close_path := dir + "/10-skate-close.png"
+	var err5 := root.get_texture().get_image().save_png(close_path)
+	print("TEAM_BOWL_CAPTURE skate_close=", close_path, " err=", err5)
 	if main.audio != null:
 		main.audio.free()
 		main.audio = null

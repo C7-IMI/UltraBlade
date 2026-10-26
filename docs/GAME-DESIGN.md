@@ -33,6 +33,13 @@ casualties. Give them both.
 | Overtime | Sudden-death 45 s if tied at the final horn |
 | Difficulty | One readable AI profile; speed/reaction scales with match phase |
 
+## Movement
+
+Skaters move on inline skates: low stance, alternating side pushes, glowing wheels, momentum that
+coasts when input is released, hard braking when pushing against momentum, and a body lean into
+turns. The animation layer generates a dedicated `skate` cycle from the ActionForge rig rather
+than using the stock run clips. Boost increases the cycle rate and adds the existing speed streak.
+
 ## Moves
 
 | Move | Effect |

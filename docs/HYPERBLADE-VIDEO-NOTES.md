@@ -39,7 +39,14 @@ The bowl is not one smooth blank half-pipe. It has:
 The goal-to-goal straight is readable, but the sides are open, high-speed space. Combat and puck
 carries spill up the banks rather than being bounded by a flat rectangle.
 
-### 3. Team diversity is part of the presentation
+### 3. Skating, not running
+
+Every player is on inline skates. The legs push out and glide rather than cycling through a
+running stride; the body sits lower, leans through turns and coast between strokes. Foot contact
+stays near the surface and the long bladed/wheeled boots are part of the silhouette. This is the
+movement mechanic the modern build was missing.
+
+### 4. Team diversity is part of the presentation
 
 The league final footage shows several uniform identities across the rosters. The gameplay clips
 show red/blue players, the trailer has green uniforms, and the arena/crowd uses the two competing
@@ -53,14 +60,14 @@ HUD names and scoreboard colours:
 | Home | Ice Saints, Cobalt Kings, Glacier Guard, Neon Oracle | cyan → electric blue, teal, ice |
 | Away | Redline Syndicate, Ember Legion, Crimson Choir, Solar Kings | red → orange, magenta, gold |
 
-### 4. Camera and read
+### 5. Camera and read
 
 The camera is a low, behind-the-skater broadcast chase view. A small rear-view inset sits in the
 upper right of the HUD. The player list, health pips and score bug are always visible, so combat
 information is never hidden. Our modern HUD keeps the same priority with a minimap instead of the
 rear-view inset.
 
-### 5. Goals and verticality
+### 6. Goals and verticality
 
 Goals are cut into the end of the drome and the centre lane stays low so the rok can be shot into
 them. The raised banks beside the goal lane create the characteristic "down in the trough" look;
@@ -78,6 +85,8 @@ players can carry the rok up a wall and attack from a raised angle.
 - **Hazards/pads** moved onto valid parts of the surface.
 - **Team selection** in the title menu, four squads per side, live uniform/HUD/scoreboard recolour.
 - **Bank-aware camera** clearance and deeper chase framing.
+- **Inline-skate locomotion**: procedural side-push skating cycle, four glowing wheels per boot,
+  low stance, momentum/coast physics and edge lean instead of the stock running clips.
 
 ## Deliberate differences
 
