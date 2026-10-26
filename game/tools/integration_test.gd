@@ -1,0 +1,163 @@
+extends SceneTree
+
+## End-to-end integration test: boots the real match scene, drives the player with
+## synthetic input, fires a charged shot, verifies an actual puck goal and a goalie save.
+## Run: godot --headless --path game -s res://tools/integration_test.gd
+
+var main: Node
+var failures: Array = []
+var checks := 0
+
+func _init() -> void:
+    call_deferred("_run")
+
+func _check(ok: bool, label: String) -> void:
+    checks += 1
+    if ok:
+        print("INTEGRATION_OK ", label)
+    else:
+        failures.append(label)
+        print("INTEGRATION_FAIL ", label)
+
+func _key(code: int, pressed: bool) -> void:
+    var ev := InputEventKey.new()
+    ev.physical_keycode = code
+    ev.keycode = code
+    ev.pressed = pressed
+    Input.parse_input_event(ev)
+
+func _mouse_left(pressed: bool) -> void:
+    var ev := InputEventMouseButton.new()
+    ev.button_index = MOUSE_BUTTON_LEFT
+    ev.pressed = pressed
+    Input.parse_input_event(ev)
+
+func _run() -> void:
+    var packed: PackedScene = load("res://scenes/main.tscn")
+    _check(packed != null, "main_scene_loads")
+    main = packed.instantiate()
+    root.add_child(main)
+    await process_frame
+    await process_frame
+    await physics_frame
+    _check(main.all_skaters.size() == 6, "six_skaters_boot")
+    _check(main.arena_data.get("bounds", {}).has("half_width"), "arena_contract_present")
+    _check(main.get_drome_bounds().get("half_length", 0.0) == 30.0, "arena_bounds_30m")
+    main.start_match()
+    main.state = 2 # PLAYING
+    main.state_timer = 0.0
+    Engine.time_scale = 1.0
+    await physics_frame
+    var sk = main.get_controlled_skater()
+    _check(sk != null, "controlled_skater")
+    _check(sk.model != null, "actionforge_model_attached")
+    # Drive with W.
+    if sk != null:
+        sk.global_position = Vector3(0, 0, -5)
+        sk.velocity = Vector3.ZERO
+        var start = sk.global_position
+        _key(KEY_W, true)
+        for i in range(35):
+            await physics_frame
+        _key(KEY_W, false)
+        await physics_frame
+        _check(sk.global_position.distance_to(start) > 1.5, "wasd_moves_player")
+    # Charged shot through the real input path.
+    var puck = main.get_puck()
+    puck.reset_to(sk.get_puck_anchor())
+    puck.attach_to(sk)
+    await physics_frame
+    _mouse_left(true)
+    for i in range(20):
+        await physics_frame
+    _mouse_left(false)
+    await process_frame
+    await physics_frame
+    await physics_frame
+    _check(puck.carrier == null and puck.velocity.length() > 12.0, "charged_shot_fires")
+    # Actual puck goal at the enemy end (no forced score).
+    main.state = 2
+    main.score_blue = 0
+    main.score_red = 0
+    main.goal_scorer = null
+    main.red_team[2].downed = true # isolate goal-plane detection from the keeper
+    main.puck.set_physics_process(true)
+    main.puck.reset_to(Vector3(0.0, 0.34, 29.0))
+    main.puck.velocity = Vector3(0.0, 0.5, 22.0)
+    main.puck.last_shooter = sk
+    main.puck.last_team = 0
+    main.puck.pickup_lock = 1.0
+    for i in range(20):
+        await physics_frame
+    _check(main.score_blue >= 1, "puck_crosses_goal_line")
+    _check(main.get_state_name() == "goal", "goal_state_after_actual_goal")
+    # Goalie save: reset and drive a puck into the red keeper from in front.
+    Engine.time_scale = 1.0
+    main.state = 2
+    main.score_blue = 0
+    main.score_red = 0
+    main.red_team[2].downed = false
+    main.puck.set_physics_process(true)
+    main.puck.reset_to(Vector3(0.0, 0.34, 24.5))
+    main.puck.velocity = Vector3(0.0, 0.0, 16.0)
+    main.puck.last_shooter = sk
+    main.puck.last_team = 0
+    main.puck.pickup_lock = 1.0
+    var before = main.score_blue
+    for i in range(20):
+        await physics_frame
+    _check(main.score_blue == before, "goalie_prevents_centered_goal")
+    # Slash damages an adjacent opponent.
+    main.state = 2
+    var enemy = main.red_team[0]
+    enemy.downed = false
+    enemy.hp = 100.0
+    enemy.invuln = 0.0
+    enemy.global_position = sk.global_position + sk.facing * 1.3
+    sk.facing = (enemy.global_position - sk.global_position).normalized()
+    sk.slash_cd = 0.0
+    sk.action_lock = 0.0
+    sk.try_slash(false)
+    _check(enemy.hp < 100.0, "slash_hits")
+    # Hazard: a turnstile must damage a skater standing in it.
+    main.state = 2
+    sk.hp = 100.0
+    sk.downed = false
+    sk.invuln = 0.0
+    sk.global_position = Vector3(8.6, 0.0, 0.0)
+    sk.velocity = Vector3.ZERO
+    for i in range(140):
+        await physics_frame
+    _check(sk.hp < 100.0, "turnstile_hazard_damages")
+    sk.hp = 100.0
+    # Killball charger: carry the rok over the arena's charger.
+    main.state = 2
+    main.puck.set_physics_process(true)
+    main.puck.reset_to(sk.get_puck_anchor())
+    main.puck.attach_to(sk)
+    sk.global_position = Vector3(0.0, 0.0, 0.0)
+    for i in range(5):
+        await process_frame
+        await physics_frame
+    _check(main.get_puck().is_charged(), "killball_charger_arms")
+    # Pause/resume.
+    main.pause_match()
+    _check(main.get_state_name() == "paused", "pause_enters")
+    main.resume_match()
+    _check(main.get_state_name() != "paused", "resume_leaves_pause")
+    # Annihilation: both enemy forwards down + a goal ends the match.
+    main.state = 2
+    main.score_blue = 0
+    main.score_red = 0
+    main.red_team[0].downed = true
+    main.red_team[1].downed = true
+    main.on_goal(0, sk, false)
+    _check(main.annihilation, "annihilation_flagged")
+    main._tick_goal(2.0)
+    _check(main.get_state_name() == "game_over", "annihilation_ends_match")
+    print("ULTRABLADE_INTEGRATION_", "OK" if failures.is_empty() else "FAIL", " checks=", checks, " failures=", failures)
+    Engine.time_scale = 1.0
+    main.queue_free()
+    await process_frame
+    await process_frame
+    quit(0 if failures.is_empty() else 1)

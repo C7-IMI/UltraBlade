@@ -1,0 +1,146 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/skater_model.gd" id="1_skater"]
+[ext_resource type="FontFile" path="res://assets/fonts/Rajdhani-SemiBold.ttf" id="2_font"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.00784314, 0.0117647, 0.0313725, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.16, 0.24, 0.4, 1)
+ambient_light_energy = 0.45
+glow_enabled = true
+glow_intensity = 1.15
+glow_bloom = 0.18
+glow_hdr_threshold = 0.85
+tonemap_mode = 3
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1"]
+size = Vector2(26, 26)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.0137255, 0.0235294, 0.0441176, 1)
+metallic = 0.65
+roughness = 0.2
+
+[node name="SkaterPreview" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -28, 0)
+light_color = Color(0.78, 0.9, 1, 1)
+light_energy = 1.7
+shadow_enabled = true
+
+[node name="BlueTagLight" type="OmniLight3D" parent="."]
+position = Vector3(-2.6, 1.2, -2.1)
+light_color = Color(0.129, 0.902, 1, 1)
+light_energy = 5.0
+omni_range = 8.0
+
+[node name="RedTagLight" type="OmniLight3D" parent="."]
+position = Vector3(2.6, 1.6, 2.2)
+light_color = Color(1, 0.176, 0.435, 1)
+light_energy = 5.0
+omni_range = 9.0
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_1")
+material_override = SubResource("StandardMaterial3D_floor")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 1.62, -5.6)
+rotation_degrees = Vector3(-6, 180, 0)
+fov = 42.0
+current = true
+
+[node name="Skaters" type="Node3D" parent="."]
+
+[node name="StrikerBlue" type="Node3D" parent="Skaters"]
+position = Vector3(2.84, 0, 0)
+script = ExtResource("1_skater")
+team_color = Color(0.129, 0.902, 1, 1)
+role = "striker"
+is_star = false
+
+[node name="EnforcerRed" type="Node3D" parent="Skaters"]
+position = Vector3(1.42, 0, 0)
+script = ExtResource("1_skater")
+team_color = Color(1, 0.176, 0.435, 1)
+role = "enforcer"
+is_star = false
+
+[node name="RunnerBlue" type="Node3D" parent="Skaters"]
+position = Vector3(0, 0, 0)
+script = ExtResource("1_skater")
+team_color = Color(0.129, 0.902, 1, 1)
+role = "runner"
+is_star = false
+
+[node name="AnchorRed" type="Node3D" parent="Skaters"]
+position = Vector3(-1.42, 0, 0)
+script = ExtResource("1_skater")
+team_color = Color(1, 0.176, 0.435, 1)
+role = "anchor"
+is_star = false
+
+[node name="GoalieStar" type="Node3D" parent="Skaters"]
+position = Vector3(-2.84, 0, 0)
+script = ExtResource("1_skater")
+team_color = Color(0.129, 0.902, 1, 1)
+role = "goalie"
+is_star = true
+
+[node name="RoleLabels" type="Node3D" parent="."]
+
+[node name="StrikerLabel" type="Label3D" parent="RoleLabels"]
+position = Vector3(2.84, 2.18, 0)
+modulate = Color(0.129, 0.902, 1, 1)
+font = ExtResource("2_font")
+font_size = 56
+outline_size = 12
+pixel_size = 0.0034
+billboard = 1
+text = "STRIKER"
+
+[node name="EnforcerLabel" type="Label3D" parent="RoleLabels"]
+position = Vector3(1.42, 2.18, 0)
+modulate = Color(1, 0.176, 0.435, 1)
+font = ExtResource("2_font")
+font_size = 56
+outline_size = 12
+pixel_size = 0.0034
+billboard = 1
+text = "ENFORCER"
+
+[node name="RunnerLabel" type="Label3D" parent="RoleLabels"]
+position = Vector3(0, 2.18, 0)
+modulate = Color(0.129, 0.902, 1, 1)
+font = ExtResource("2_font")
+font_size = 56
+outline_size = 12
+pixel_size = 0.0034
+billboard = 1
+text = "RUNNER"
+
+[node name="AnchorLabel" type="Label3D" parent="RoleLabels"]
+position = Vector3(-1.42, 2.18, 0)
+modulate = Color(1, 0.176, 0.435, 1)
+font = ExtResource("2_font")
+font_size = 56
+outline_size = 12
+pixel_size = 0.0034
+billboard = 1
+text = "ANCHOR"
+
+[node name="GoalieLabel" type="Label3D" parent="RoleLabels"]
+position = Vector3(-2.84, 2.18, 0)
+modulate = Color(0.129, 0.902, 1, 1)
+font = ExtResource("2_font")
+font_size = 56
+outline_size = 12
+pixel_size = 0.0034
+billboard = 1
+text = "GOALIE"

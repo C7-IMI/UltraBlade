@@ -1,0 +1,22 @@
+# Godot generated
+.godot/
+*.translation
+export.cfg
+
+# Build output and captures
+build/
+artifacts/
+captures/
+
+# Research / unlicensed reference material (local only)
+reference/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.log

@@ -1,0 +1,58 @@
+{
+  "schema": "gypsy.project/v1",
+  "name": "UltraBlade",
+  "engine": {
+    "id": "godot",
+    "version": "4.7.2",
+    "adapter": "godot-4"
+  },
+  "targets": [
+    "pc"
+  ],
+  "paths": {
+    "game": "game",
+    "artifacts": "artifacts"
+  },
+  "created": "2026-10-26T05:22:21-05:00",
+  "hardware": {
+    "os": "Windows",
+    "arch": "AMD64",
+    "ram_gb": 63.7,
+    "gpu": {
+      "name": "NVIDIA T600 Laptop GPU",
+      "vram_gb": 4,
+      "driver": "597.30"
+    },
+    "disks": {
+      "C": {
+        "free_gb": 204.9,
+        "total_gb": 928.6
+      },
+      "D": {
+        "free_gb": 60,
+        "total_gb": 3815.3
+      }
+    }
+  },
+  "hardwareGate": {
+    "ok": true,
+    "reasons": [],
+    "requirements": {
+      "min_vram_gb": 0,
+      "min_free_gb": 5,
+      "disk": "C"
+    }
+  },
+  "decisions": [
+    {
+      "date": "2026-10-26T05:22:21-05:00",
+      "decision": "engine godot 4.7.2 (godot-4)",
+      "reason": "operator selected the engine when creating the project"
+    },
+    {
+      "date": "2026-10-26T05:30:00-05:00",
+      "decision": "UltraBlade is a modern HyperBlade-inspired 3D skating combat game; Godot 4.7.2 PC for the playable slice",
+      "reason": "See docs/ENGINE-DECISION.md. Fast iteration and verified local Godot pipeline fit an arcade combat remake; UE5 is hardware-gated and Unity has no proven local asset pipeline."
+    }
+  ]
+}
