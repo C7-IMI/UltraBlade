@@ -16,6 +16,10 @@ quality claim beyond what is written here. Timestamps are local (America/Chicago
 
 ## Game logic
 
+- **Default boot is muted.** With no `user://settings.cfg`, the headless demo prints
+  `muted=true`; the master bus is muted until the user presses `M`, moves a slider or presses `]`.
+  Settings then persist for subsequent launches.
+
 | Check | Exact command | Observed result |
 | --- | --- | --- |
 | Headless boot/import | `godot_console.exe --headless --path game --import` | exit 0 |
@@ -44,8 +48,8 @@ Godot's Input system, and checks:
 
 ## Repository hygiene
 
-- `python scripts/check_repo.py` → **PASS**: 138 UTF-8 text files with no BOM and no CR; 61 binary
-  files skipped; 13 relative Markdown links resolve; `CHECK_REPO_OK`.
+- `python scripts/check_repo.py` → **PASS**: 138 UTF-8 text files with no BOM and no CR; 62 binary
+  files skipped; 14 relative Markdown links resolve; `CHECK_REPO_OK`.
 
 ## Windowed presentation
 
@@ -55,6 +59,9 @@ Godot's Input system, and checks:
 - `godot_console.exe --path game -s res://tools/volume_preview.gd` (windowed) → exit 0;
   `05-pause.png` captures the pause **AUDIO MIX** with MASTER 65%, MUSIC 50%, SFX 80%;
   compressed as `docs/media/pause.jpg`.
+- `godot_console.exe --path game -s res://tools/skater_preview.gd -- --capture` → exit 0;
+  `lineup_front.png`, `duel_action.png`, `star_goalie_closeup.png`; compressed lineup used
+  in the README as `docs/media/characters.jpg`.
 - Volume/mix changes are saved to `user://settings.cfg` and applied to the Master/Music/SFX
   buses through `AudioDirector.set_volume/get_volume/set_muted`. Keyboard: `[` / `]` master,
   `M` mute.
@@ -66,7 +73,7 @@ Godot's Input system, and checks:
 | Subsystem | Exact command | Observed result |
 | --- | --- | --- |
 | Arena builder | `godot_console.exe --headless --quit-after 350 --path game res://tools/arena_preview.tscn -- --selftest` | exit 0, empty stderr; `ARENA_SELFTEST_OK`; 35/35 checks; **31 draws, 27,882 tris, 10 lights, 1,728 crowd instances, static_bodies=9, shapes=51**; goal areas at z=−30.5/+30.5; 4 spawn transforms per side; 4 boost pads; 4 hazards; bounds 16/30; no floor collider (match layer owns it) |
-| ActionForge skater integration | `godot_console.exe --headless --path game -s res://tools/skater_preview.gd` | exit 0, empty stderr; `SKATER_SELFTEST_PASS checks=93`; 20 clips; cold library 73.28 ms, cached 0.002 ms; per-model build 3.96–9.93 ms; 24 renderables/skater; 11 root-motion clips stripped |
+| ActionForge skater integration | `godot_console.exe --headless --path game -s res://tools/skater_preview.gd` | exit 0, empty stderr; `SKATER_SELFTEST_PASS checks=93`; 20 clips; cold library 37.5 ms, cached 0.001 ms; per-model build 2.8–6.8 ms; 24 renderables/skater; 11 root-motion clips stripped. Combat-idle stance uses `sword_idle`; measured heights 1.88–1.94 m after the aggressive silhouette pass. |
 | ActionForge skater preview scene | `godot_console.exe --headless --path game --quit-after 120 res://tools/skater_preview.tscn` | exit 0 |
 | Procedural audio | `godot_console.exe --headless --path game -s res://tools/audio_preview.gd` | `[AUDIO_PREVIEW] checks=121 fails=0`, `UB_AUDIO_PREVIEW_OK`, exit 0; 31 WAVs / 12.26 MB; 44.1 kHz 16-bit PCM; loops tagged forward |
 | Audio generation | `python tools/generate_audio.py --verify-only` | `VERIFY 31 assets, 12.26 MB ... PASS` |
@@ -78,8 +85,8 @@ Godot's Input system, and checks:
 - `build\UltraBlade.exe --headless -- --selftest` → exit 0; same 18/18 marker.
 - The export uses the pinned 4.7.2 Windows Desktop template from this machine.
 
-Final export: **124,297,152 bytes**, SHA-256
-`C4943CBD6B788DAFD30DC332BA9BF5185632D6638B3E00F646348FC1D668384A` (2026-10-26, volume-control rebuild).
+Final export: **124,300,448 bytes**, SHA-256
+`FBA94B5C52B008BA5805CC2EC1B73EB79835BFD4533BAB29AF9C5E668DE0627A` (2026-10-26, aggressive-model + default-mute rebuild).
 The exported binary was also run windowed in capture mode, and wrote four 1600×900 PNGs, proving
 that the packaged project loads its scene, arena, skater models, audio and HUD outside the editor.
 The final build was re-smoked with `build\UltraBlade.exe --headless -- --selftest` → exit 0,

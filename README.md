@@ -37,7 +37,14 @@ is presentation and feel: the ActionForge-animated skaters, a neon broadcast dro
 cinematics, impact feedback, a readable combat HUD, a minimap, kill feed and an original
 procedural score.
 
+The skaters are deliberately lean and aggressive: gunmetal plating over a dark team suit, swept
+shoulder blades, spiked crown helmets, slit visors, long serrated jaks and low, combat-ready
+stances. Role builds exaggerate the silhouette — enforcers are broader and caged, runners are
+slight, and goalies carry heavy pads and blockers.
+
 ![Gameplay in THE VAULT](docs/media/gameplay.jpg)
+
+![Character lineup: striker, enforcer, runner, anchor, goalie](docs/media/characters.jpg)
 
 ## Controls
 
@@ -59,6 +66,8 @@ procedural score.
 | `Enter` | Start / rematch from the title or end screen |
 
 Volume and mix are also available in the pause menu: **MASTER**, **MUSIC** and **SFX** sliders. Settings are persisted to `user://settings.cfg` between runs.
+
+**The game starts muted by default.** Press `M` to unmute, or raise the master slider / press `]`.
 
 ![Pause audio mix](docs/media/pause.jpg)
 

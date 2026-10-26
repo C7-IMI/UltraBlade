@@ -18,8 +18,8 @@
 | Enter | Start from the title; rematch from the end screen |
 
 Menu: mouse is visible. Field manual opens from the title screen. **Pause → AUDIO MIX** has
-MASTER, MUSIC and SFX sliders; volumes persist in `user://settings.cfg`. Gamepad support is not in
-this slice.
+MASTER, MUSIC and SFX sliders; volumes persist in `user://settings.cfg`. The game starts **muted** by
+default — press `M` to unmute. Gamepad support is not in this slice.
 
 ## Match rules
 

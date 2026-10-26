@@ -41,7 +41,7 @@ signal action_finished(state: String)
 
 const RIG_SCENE_PATH := "res://assets/actionforge/rig/rig-human.glb"
 const CLIP_DIR := "res://assets/actionforge/animations/"
-const TARGET_HEIGHT := 1.90
+const TARGET_HEIGHT := 1.93
 const RIG_YAW_FIX := PI
 const DEFAULT_TEAM := Color(0.129, 0.902, 1.0)
 const STAR_GOLD := Color(1.0, 0.78, 0.25)
@@ -76,7 +76,8 @@ const LOOP_CLIPS := ["idle", "walk", "jog_fwd", "sprint", "slide", "jump", "swor
 
 ## Contract state -> clip key. Extra aliases are provided for the Lead's convenience.
 const STATE_CLIP := {
-	"idle": "idle",
+	# Combat-ready stance; the plain idle reads too passive for the drome.
+	"idle": "sword_idle",
 	"walk": "walk",
 	"skate": "jog_fwd",
 	"sprint": "sprint",
@@ -150,6 +151,7 @@ var _state := ""
 var _current_clip := ""
 var _locomotion_state := "idle"
 var _locomotion_speed := 0.0
+var _lean := 0.0
 var _pending_state := ""
 var _pending_speed := 0.0
 
@@ -536,13 +538,14 @@ func _fit_height() -> void:
 func _build_materials() -> void:
 	var team := _team_color
 	var trim_color := STAR_GOLD if _is_star else team
-	var steel := Color(0.16, 0.19, 0.24)
-	var dark := Color(0.07, 0.085, 0.11)
-	_mats["armour"] = _make_solid(steel.lerp(team, 0.32), 0.62, 0.34, team, 0.20)
-	_mats["armour_dark"] = _make_solid(dark.lerp(team, 0.20), 0.55, 0.42, team, 0.10)
-	_mats["trim"] = _make_unshaded(trim_color, trim_color, 2.2)
+	var steel := Color(0.22, 0.24, 0.28)
+	var dark := Color(0.045, 0.055, 0.075)
+	# Gunmetal plates with team accents; the suit stays dark so the silhouette reads.
+	_mats["armour"] = _make_solid(steel.lerp(team, 0.30), 0.80, 0.27, team, 0.16)
+	_mats["armour_dark"] = _make_solid(dark.lerp(team, 0.09), 0.74, 0.34, team, 0.05)
+	_mats["trim"] = _make_unshaded(trim_color, trim_color, 2.8)
 	_mats["visor"] = _make_visor(team)
-	_mats["blade"] = _make_unshaded(team.darkened(0.10), team, 1.9)
+	_mats["blade"] = _make_unshaded(team.darkened(0.04), team, 2.6)
 	(_mats["blade"] as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mats["metal"] = _make_solid(Color(0.26, 0.29, 0.34), 0.85, 0.28, Color.BLACK, 0.0)
 	_mats["gold"] = _make_unshaded(STAR_GOLD, STAR_GOLD, 2.6)
@@ -576,10 +579,10 @@ func _make_visor(team: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.albedo_color = Color(team.r, team.g, team.b, 0.55)
+	material.albedo_color = Color(team.r, team.g, team.b, 0.72)
 	material.emission_enabled = true
 	material.emission = team
-	material.emission_energy_multiplier = 1.7
+	material.emission_energy_multiplier = 2.4
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return material
 
@@ -614,15 +617,15 @@ func _tint_mannequin() -> void:
 		var material := StandardMaterial3D.new()
 		material.emission_enabled = true
 		if surface_idx == 0:
-			material.albedo_color = Color(0.055, 0.065, 0.085).lerp(_team_color, 0.36)
+			material.albedo_color = Color(0.028, 0.034, 0.046).lerp(_team_color, 0.32)
 			material.emission = _team_color
-			material.emission_energy_multiplier = 0.12
+			material.emission_energy_multiplier = 0.055
 		else:
-			material.albedo_color = Color(0.03, 0.035, 0.045).lerp(_team_color, 0.16)
+			material.albedo_color = Color(0.018, 0.022, 0.032).lerp(_team_color, 0.14)
 			material.emission = _team_color
-			material.emission_energy_multiplier = 0.06
-		material.metallic = 0.35
-		material.roughness = 0.42
+			material.emission_energy_multiplier = 0.025
+		material.metallic = 0.22
+		material.roughness = 0.52
 		material.rim_enabled = true
 		material.rim = 0.5
 		material.rim_tint = 0.7
@@ -647,21 +650,32 @@ func _build_helmet(style: Dictionary) -> void:
 	var design := Transform3D(Basis.IDENTITY, Vector3(0.0, 1.697, -0.005))
 	var crest: float = style["crest"]
 	var helmet_parts := [
-		_part(_sphere(0.100, 0.285), Vector3.ZERO, Basis.from_scale(Vector3(1.10, 1.02, 1.30))),
-		_part(_box(Vector3(0.030, 0.095 * crest, 0.210 * crest)), Vector3(0.0, 0.125 * crest, -0.045)),
-		_part(_box(Vector3(0.026, 0.060, 0.090)), Vector3(0.0, 0.070, 0.090)),
+		_part(_sphere(0.094, 0.270), Vector3.ZERO, Basis.from_scale(Vector3(1.08, 1.02, 1.25))),
+		# Angular crown: brow wedge, swept dorsal crest and side jaw plates.
+		_part(_box(Vector3(0.175, 0.060, 0.215)), Vector3(0.0, 0.060, 0.010), Basis(Vector3.RIGHT, 0.10)),
+		_part(_box(Vector3(0.028, 0.075, 0.150)), Vector3(0.0, 0.105 * crest, -0.020), Basis(Vector3.RIGHT, 0.18)),
+		_part(_blade_mesh(0.20 * crest), Vector3(0.0, 0.100, -0.025), Basis(Vector3.UP, PI)),
+		_part(_box(Vector3(0.034, 0.095, 0.065)), Vector3(0.108, -0.012, 0.012), Basis(Vector3.UP, -0.24)),
+		_part(_box(Vector3(0.034, 0.095, 0.065)), Vector3(-0.108, -0.012, 0.012), Basis(Vector3.UP, 0.24)),
+		_part(_box(Vector3(0.160, 0.050, 0.055)), Vector3(0.0, -0.075, 0.095), Basis(Vector3.RIGHT, -0.12)),
+		_part(_box(Vector3(0.120, 0.045, 0.070)), Vector3(0.0, -0.045, 0.120), Basis(Vector3.RIGHT, -0.18)),
 	]
 	_add_merged_piece("Head", helmet_parts, _mats["armour"], design)
 
 	var trim_parts := [
-		_part(_box(Vector3(0.240, 0.028, 0.035)), Vector3(0.0, 0.062, 0.112)),
-		_part(_box(Vector3(0.035, 0.075, 0.140)), Vector3(0.115, 0.0, -0.020)),
-		_part(_box(Vector3(0.035, 0.075, 0.140)), Vector3(-0.115, 0.0, -0.020)),
+		_part(_box(Vector3(0.200, 0.022, 0.020)), Vector3(0.0, 0.078, 0.118)),
+		_part(_box(Vector3(0.022, 0.070, 0.115)), Vector3(0.135, 0.0, 0.010), Basis(Vector3.UP, -0.24)),
+		_part(_box(Vector3(0.022, 0.070, 0.115)), Vector3(-0.135, 0.0, 0.010), Basis(Vector3.UP, 0.24)),
+		_part(_box(Vector3(0.110, 0.018, 0.018)), Vector3(0.0, -0.050, 0.140)),
 	]
 	_add_merged_piece("Head", trim_parts, _mats["trim"], design)
 
 	var visor_parts := [
-		_part(_sphere(0.078, 0.100), Vector3(0.0, 0.0, 0.105), Basis.from_scale(Vector3(1.55, 0.90, 0.55))),
+		_part(_sphere(0.072, 0.095), Vector3(0.0, 0.006, 0.102), Basis.from_scale(Vector3(1.45, 0.72, 0.45))),
+		# Predatory visor slits.
+		_part(_box(Vector3(0.128, 0.012, 0.016)), Vector3(0.0, 0.030, 0.142), Basis(Vector3.RIGHT, 0.08)),
+		_part(_box(Vector3(0.100, 0.010, 0.016)), Vector3(0.010, 0.002, 0.147), Basis(Vector3.RIGHT, 0.08)),
+		_part(_box(Vector3(0.068, 0.010, 0.014)), Vector3(-0.018, -0.025, 0.147), Basis(Vector3.RIGHT, 0.08)),
 	]
 	_add_merged_piece("Head", visor_parts, _mats["visor"], design)
 
@@ -682,31 +696,46 @@ func _build_chest(style: Dictionary) -> void:
 	var design := Transform3D(Basis.IDENTITY, Vector3(0.0, 1.360, 0.0))
 	var chest: float = style["chest"]
 	var parts := [
-		_part(_box(Vector3(0.420, 0.300, 0.280) * chest), Vector3.ZERO),
-		_part(_box(Vector3(0.460, 0.090, 0.300) * chest), Vector3(0.0, 0.090, 0.010)),
-		_part(_box(Vector3(0.260, 0.220, 0.085)), Vector3(0.0, -0.020, -0.160)),
-		_part(_box(Vector3(0.130, 0.160, 0.070)), Vector3(0.150, -0.030, -0.130)),
-		_part(_box(Vector3(0.130, 0.160, 0.070)), Vector3(-0.150, -0.030, -0.130)),
+		# Narrow core with a V-shaped chest cage: broad at the collarbones, cut
+		# away at the ribs so the suit and hips read lean rather than boxy.
+		_part(_box(Vector3(0.250, 0.230, 0.185) * chest), Vector3.ZERO),
+		_part(_box(Vector3(0.300, 0.075, 0.110) * chest), Vector3(0.0, 0.105, 0.080), Basis(Vector3.RIGHT, 0.10)),
+		_part(_box(Vector3(0.155, 0.135, 0.060) * chest), Vector3(0.105, 0.020, 0.125), Basis(Vector3.UP, -0.24)),
+		_part(_box(Vector3(0.155, 0.135, 0.060) * chest), Vector3(-0.105, 0.020, 0.125), Basis(Vector3.UP, 0.24)),
+		_part(_box(Vector3(0.040, 0.165, 0.040)), Vector3(0.0, 0.030, 0.150)),
+		# Abdominal plates shrink down the waist.
+		_part(_box(Vector3(0.190, 0.052, 0.055)), Vector3(0.0, -0.075, 0.120)),
+		_part(_box(Vector3(0.160, 0.048, 0.050)), Vector3(0.0, -0.140, 0.108)),
+		_part(_box(Vector3(0.125, 0.045, 0.045)), Vector3(0.0, -0.200, 0.097)),
+		# Swept dorsal fin / spine ridge.
+		_part(_blade_mesh(0.26 * chest), Vector3(0.0, 0.060, -0.120), Basis(Vector3.UP, PI)),
+		_part(_box(Vector3(0.200, 0.180, 0.065)), Vector3(0.0, -0.015, -0.105)),
 	]
 	_add_merged_piece("spine_03", parts, _mats["armour"], design)
 
 	var trim_parts := [
-		_part(_box(Vector3(0.300, 0.032, 0.020)), Vector3(0.0, 0.015, 0.146)),
-		_part(_box(Vector3(0.032, 0.190, 0.020)), Vector3(0.148, 0.0, 0.132)),
-		_part(_box(Vector3(0.032, 0.190, 0.020)), Vector3(-0.148, 0.0, 0.132)),
+		# Collarbone chevrons and rib light-strips.
+		_part(_box(Vector3(0.135, 0.026, 0.020)), Vector3(0.095, 0.118, 0.142), Basis(Vector3.BACK, 0.16)),
+		_part(_box(Vector3(0.135, 0.026, 0.020)), Vector3(-0.095, 0.118, 0.142), Basis(Vector3.BACK, -0.16)),
+		_part(_box(Vector3(0.024, 0.160, 0.018)), Vector3(0.138, -0.010, 0.132), Basis(Vector3.BACK, 0.10)),
+		_part(_box(Vector3(0.024, 0.160, 0.018)), Vector3(-0.138, -0.010, 0.132), Basis(Vector3.BACK, -0.10)),
+		_part(_box(Vector3(0.280, 0.024, 0.018)), Vector3(0.0, 0.045, 0.170)),
 	]
 	_add_merged_piece("spine_03", trim_parts, _mats["trim"], design)
 
 	if _is_star:
-		_add_piece("spine_03", _star_mesh(0.058), _mats["gold"], design, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.060, 0.150)))
+		_add_piece("spine_03", _star_mesh(0.060), _mats["gold"], design, Transform3D(Basis.IDENTITY, Vector3(0.0, 0.070, 0.170)))
 
 func _build_pelvis(style: Dictionary) -> void:
 	var design := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.900, 0.0))
 	var parts := [
-		_part(_box(Vector3(0.380, 0.180, 0.320)), Vector3.ZERO),
-		_part(_box(Vector3(0.070, 0.150, 0.260)), Vector3(0.185, -0.020, 0.0)),
-		_part(_box(Vector3(0.070, 0.150, 0.260)), Vector3(-0.185, -0.020, 0.0)),
-		_part(_box(Vector3(0.300, 0.160, 0.060)), Vector3(0.0, -0.020, -0.145)),
+		_part(_box(Vector3(0.285, 0.120, 0.190)), Vector3.ZERO),
+		# Flared, blade-like hip guards, angled forward.
+		_part(_box(Vector3(0.125, 0.190, 0.070)), Vector3(0.155, -0.035, 0.060), Basis(Vector3.UP, -0.34) * Basis(Vector3.BACK, 0.18)),
+		_part(_box(Vector3(0.125, 0.190, 0.070)), Vector3(-0.155, -0.035, 0.060), Basis(Vector3.UP, 0.34) * Basis(Vector3.BACK, -0.18)),
+		_part(_box(Vector3(0.180, 0.100, 0.055)), Vector3(0.0, -0.040, 0.108), Basis(Vector3.RIGHT, -0.20)),
+		_part(_blade_mesh(0.16), Vector3(0.160, 0.010, 0.020), Basis(Vector3.UP, -PI * 0.5)),
+		_part(_blade_mesh(0.16), Vector3(-0.160, 0.010, 0.020), Basis(Vector3.UP, PI * 0.5)),
 	]
 	_add_merged_piece("pelvis", parts, _mats["armour"], design)
 
@@ -716,8 +745,12 @@ func _build_shoulders(style: Dictionary) -> void:
 		var bone := "upperarm_l" if side > 0.0 else "upperarm_r"
 		var design := Transform3D(Basis.IDENTITY, Vector3(0.235 * side, 1.455, -0.055))
 		var parts := [
-			_part(_sphere(0.105, 0.210), Vector3(0.0, 0.020 * pad, 0.0), Basis.from_scale(Vector3(1.30, 1.0, 1.40) * pad)),
-			_part(_box(Vector3(0.200, 0.050, 0.240) * pad), Vector3(0.0, 0.105 * pad, -0.010)),
+			# Compact cap with a hard forward slope and a swept-back blade fin.
+			_part(_sphere(0.078, 0.165), Vector3(0.0, 0.012, 0.0), Basis.from_scale(Vector3(1.35, 0.90, 1.55) * pad)),
+			_part(_box(Vector3(0.190, 0.045, 0.235) * pad), Vector3(0.0, 0.086, 0.012), Basis(Vector3.RIGHT, 0.24)),
+			_part(_box(Vector3(0.032, 0.130, 0.050) * pad), Vector3(0.100 * side, 0.070, 0.018), Basis(Vector3.BACK, side * 0.42)),
+			_part(_blade_mesh(0.25 * pad), Vector3(0.045 * side, 0.060, 0.035), Basis(Vector3.UP, PI + side * 0.28)),
+			_part(_box(Vector3(0.120, 0.030, 0.200) * pad), Vector3(0.0, -0.030, -0.020), Basis(Vector3.RIGHT, -0.15)),
 		]
 		_add_merged_piece(bone, parts, _mats["armour"], design)
 
@@ -727,9 +760,10 @@ func _build_forearms(style: Dictionary) -> void:
 		var bone := "lowerarm_l" if side > 0.0 else "lowerarm_r"
 		var design := Transform3D(Basis.IDENTITY, Vector3(0.600 * side, 1.441, -0.065))
 		var parts := [
-			_part(_box(Vector3(0.240, 0.115, 0.145) * guard), Vector3.ZERO),
-			_part(_box(Vector3(0.055, 0.150, 0.160)), Vector3(0.100 * side, 0.0, 0.0)),
-			_part(_box(Vector3(0.140, 0.050, 0.170)), Vector3(0.0, 0.060, 0.0)),
+			_part(_box(Vector3(0.165, 0.080, 0.120) * guard), Vector3.ZERO),
+			_part(_box(Vector3(0.040, 0.070, 0.155) * guard), Vector3(0.095 * side, -0.005, 0.010), Basis(Vector3.UP, side * 0.12)),
+			_part(_box(Vector3(0.035, 0.035, 0.190) * guard), Vector3(0.0, 0.072, 0.000), Basis(Vector3.RIGHT, -0.20)),
+			_part(_blade_mesh(0.17 * guard), Vector3(0.060 * side, 0.010, -0.020), Basis(Vector3.UP, PI + side * 0.30)),
 		]
 		_add_merged_piece(bone, parts, _mats["armour_dark"], design)
 
@@ -739,12 +773,13 @@ func _build_gloves(style: Dictionary) -> void:
 		var bone := "hand_l" if side > 0.0 else "hand_r"
 		var design := Transform3D(Basis.IDENTITY, Vector3(0.800 * side, 1.441, -0.065))
 		var parts := [
-			_part(_box(Vector3(0.180, 0.115, 0.150) * glove), Vector3.ZERO),
-			_part(_box(Vector3(0.100, 0.045, 0.160) * glove), Vector3(0.020 * side, 0.055, 0.010)),
-			_part(_box(Vector3(0.055, 0.160, 0.170) * glove), Vector3(-0.080 * side, 0.0, 0.0)),
+			_part(_box(Vector3(0.155, 0.100, 0.135) * glove), Vector3.ZERO),
+			_part(_box(Vector3(0.085, 0.040, 0.145) * glove), Vector3(0.020 * side, 0.055, 0.010)),
+			_part(_box(Vector3(0.050, 0.145, 0.155) * glove), Vector3(-0.080 * side, 0.0, 0.0)),
+			_part(_blade_mesh(0.15 * glove), Vector3(0.075 * side, -0.010, -0.010), Basis(Vector3.UP, PI * 0.5)),
 		]
 		if bool(style["goal_pads"]):
-			parts.append(_part(_box(Vector3(0.160, 0.170, 0.060) * glove), Vector3(0.020 * side, 0.0, 0.100)))
+			parts.append(_part(_box(Vector3(0.150, 0.155, 0.055) * glove), Vector3(0.020 * side, 0.0, 0.090)))
 		_add_merged_piece(bone, parts, _mats["armour_dark"], design)
 
 func _build_legs(style: Dictionary) -> void:
@@ -754,33 +789,44 @@ func _build_legs(style: Dictionary) -> void:
 		var thigh_bone := "thigh_l" if side > 0.0 else "thigh_r"
 		var calf_bone := "calf_l" if side > 0.0 else "calf_r"
 		var foot_bone := "foot_l" if side > 0.0 else "foot_r"
+		# Lean, open thigh armour: front quad plate + outer hip flare; the suit
+		# stays visible so the legs read athletic instead of robotic.
 		var thigh_parts := [
-			_part(_box(Vector3(0.170, 0.300, 0.220) * thigh_scale), Vector3.ZERO),
-			_part(_box(Vector3(0.180, 0.070, 0.240) * thigh_scale), Vector3(0.0, -0.120, 0.0)),
+			_part(_box(Vector3(0.115, 0.255, 0.055) * thigh_scale), Vector3(0.0, 0.000, 0.090)),
+			_part(_box(Vector3(0.085, 0.160, 0.100) * thigh_scale), Vector3(0.060 * side, -0.015, 0.020), Basis(Vector3.UP, -side * 0.18)),
+			_part(_box(Vector3(0.055, 0.115, 0.085) * thigh_scale), Vector3(-0.048 * side, 0.050, 0.030)),
+			_part(_box(Vector3(0.155, 0.055, 0.155) * thigh_scale), Vector3(0.0, 0.125, 0.005), Basis(Vector3.RIGHT, -0.12)),
+			_part(_blade_mesh(0.16 * thigh_scale), Vector3(0.065 * side, 0.055, -0.020), Basis(Vector3.UP, PI + side * 0.35)),
 		]
 		_add_merged_piece(thigh_bone, thigh_parts, _mats["armour_dark"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.720, 0.015)))
 
 		var shin_parts := [
-			_part(_box(Vector3(0.160, 0.300, 0.190) * shin_scale), Vector3.ZERO),
-			_part(_box(Vector3(0.170, 0.070, 0.200) * shin_scale), Vector3(0.0, 0.120, 0.010)),
+			_part(_box(Vector3(0.105, 0.245, 0.050) * shin_scale), Vector3(0.0, 0.000, 0.085)),
+			_part(_box(Vector3(0.125, 0.070, 0.105) * shin_scale), Vector3(0.0, 0.128, 0.020), Basis(Vector3.RIGHT, -0.18)),
+			_part(_box(Vector3(0.080, 0.190, 0.105) * shin_scale), Vector3(0.0, -0.030, 0.010)),
+			_part(_box(Vector3(0.030, 0.160, 0.040) * shin_scale), Vector3(-0.063 * side, 0.000, 0.065)),
+			_part(_blade_mesh(0.15 * shin_scale), Vector3(0.055 * side, 0.045, -0.015), Basis(Vector3.UP, PI + side * 0.35)),
 		]
 		_add_merged_piece(calf_bone, shin_parts, _mats["armour_dark"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.300, -0.005)))
 
 		if bool(style["goal_pads"]):
 			var pad_parts := [
-				_part(_box(Vector3(0.210, 0.460, 0.170)), Vector3(0.0, -0.060, 0.055)),
+				_part(_box(Vector3(0.190, 0.430, 0.150)), Vector3(0.0, -0.060, 0.060), Basis(Vector3.RIGHT, -0.10)),
+				_part(_box(Vector3(0.150, 0.090, 0.110)), Vector3(0.0, 0.145, 0.035), Basis(Vector3.RIGHT, -0.25)),
 			]
 			_add_merged_piece(calf_bone, pad_parts, _mats["armour"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.300, -0.005)))
 
-		# Skate boot + holder on the foot bone.
+		# Low-profile speed boot with a longer competitive blade.
 		var boot_parts := [
-			_part(_box(Vector3(0.150, 0.180, 0.320)), Vector3.ZERO),
-			_part(_box(Vector3(0.055, 0.040, 0.160)), Vector3(0.0, -0.095, 0.010)),
-			_part(_box(Vector3(0.120, 0.090, 0.140)), Vector3(0.0, 0.135, -0.060)),
+			_part(_box(Vector3(0.125, 0.155, 0.285)), Vector3.ZERO),
+			_part(_box(Vector3(0.100, 0.065, 0.110)), Vector3(0.0, 0.100, 0.060), Basis(Vector3.RIGHT, -0.10)),
+			_part(_box(Vector3(0.090, 0.055, 0.120)), Vector3(0.0, -0.070, 0.095)),
+			_part(_box(Vector3(0.022, 0.035, 0.360)), Vector3(0.0, -0.105, 0.080)),
 		]
 		_add_merged_piece(foot_bone, boot_parts, _mats["armour_dark"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.100, 0.045)))
 		var blade_parts := [
-			_part(_box(Vector3(0.026, 0.050, 0.380)), Vector3(0.0, -0.115, 0.010)),
+			_part(_box(Vector3(0.024, 0.045, 0.460)), Vector3(0.0, -0.130, 0.090)),
+			_part(_box(Vector3(0.018, 0.032, 0.070)), Vector3(0.0, -0.130, 0.325), Basis(Vector3.RIGHT, 0.20)),
 		]
 		_add_merged_piece(foot_bone, blade_parts, _mats["blade"], Transform3D(Basis.IDENTITY, Vector3(0.089 * side, 0.100, 0.045)))
 
@@ -792,7 +838,7 @@ func _build_jak(style: Dictionary) -> void:
 		_part(_box(Vector3(0.100, 0.090, 0.020)), Vector3(0.0, 0.0, -0.120)),
 	]
 	_add_merged_piece("hand_l", grip_parts, _mats["armour_dark"], design)
-	var blade_length: float = 0.88 * float(style["blade"])
+	var blade_length: float = 1.04 * float(style["blade"])
 	var blade_tilt := Transform3D(Basis(Vector3(1.0, 0.0, 0.0), 0.30), Vector3.ZERO)
 	_add_piece("hand_l", _blade_mesh(blade_length), _mats["blade"], design, blade_tilt)
 
@@ -988,6 +1034,25 @@ func _star_mesh(radius: float) -> ArrayMesh:
 		st.add_vertex(points[(i + 1) % 10])
 	st.generate_normals()
 	return st.commit()
+
+func _process(delta: float) -> void:
+	if not _built or _rig == null:
+		return
+	# Athletic forward bias: speed and combat actions drive a subtle whole-body
+	# lean, while the ground glow and shadow props remain level.
+	var target_lean := -0.035
+	if _state == "skate":
+		target_lean = -0.08 - _locomotion_speed * 0.055
+	elif _state == "sprint":
+		target_lean = -0.12 - _locomotion_speed * 0.060
+	elif _state in ["slash", "heavy", "punch", "hook", "attack"]:
+		target_lean = -0.075
+	elif _state == "down":
+		target_lean = 0.0
+	if _boosting:
+		target_lean -= 0.035
+	_lean = lerpf(_lean, target_lean, clampf(delta * 6.0, 0.0, 1.0))
+	_rig.rotation.x = _lean
 
 # =============================================================================
 # State machine

@@ -156,6 +156,7 @@ func _run() -> void:
     main._tick_goal(2.0)
     _check(main.get_state_name() == "game_over", "annihilation_ends_match")
     # Volume mix: the pause-screen sliders drive the real audio buses and persist.
+    var original_muted = main.audio_muted
     main.pause_match()
     _check(main.hud.volume_sliders.size() == 3, "three_volume_sliders")
     var master_slider = main.hud.volume_sliders.get("master")
@@ -177,6 +178,10 @@ func _run() -> void:
         _check(main.audio.is_muted(), "mute_toggle")
     main._toggle_mute()
     main._on_volume_changed("music", 1.0)
+    main.audio_muted = original_muted
+    main._apply_audio_settings()
+    main._save_audio_settings()
+    main._sync_hud_audio()
     print("ULTRABLADE_INTEGRATION_", "OK" if failures.is_empty() else "FAIL", " checks=", checks, " failures=", failures)
     Engine.time_scale = 1.0
     # Stop and free audio explicitly before freeing the scene; keeps the headless smoke clean.

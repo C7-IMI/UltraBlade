@@ -161,7 +161,7 @@ func _run_selftest(world: Node3D) -> void:
 	# --- 7. Contract states map to clips --------------------------------------
 	if animation_player != null:
 		var expected_states := {
-			"idle": "idle",
+			"idle": "sword_idle",
 			"skate": "jog_fwd",
 			"sprint": "sprint",
 			"slash": "sword_regular_a",
@@ -233,7 +233,7 @@ func _run_selftest(world: Node3D) -> void:
 	await process_frame
 	_check(ordered.get_role() == "enforcer", "late setup applies role after add_child (got " + ordered.get_role() + ")")
 	_check(ordered.get_team_color() == RED, "late setup applies team colour after add_child")
-	_check(String(ordered.get_animation_player().current_animation) == "idle", "late setup keeps an animation playing")
+	_check(String(ordered.get_animation_player().current_animation) == "sword_idle", "late setup keeps an animation playing")
 	_check(absf(_model_bounds(ordered).size.y - 1.9) < 0.05, "late setup height ~1.9 m")
 	ordered.queue_free()
 

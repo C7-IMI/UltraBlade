@@ -91,7 +91,7 @@ var match_goals = 0
 var master_volume = 0.8
 var music_volume = 1.0
 var sfx_volume = 1.0
-var audio_muted = false
+var audio_muted = true
 var _st_checks = 0
 var _st_failures: Array = []
 
@@ -1492,7 +1492,7 @@ func _start_demo() -> void:
     if camera_rig:
         camera_rig.set_target(blue_team[0])
     demo_start_ms = Time.get_ticks_msec()
-    print("ULTRABLADE_DEMO_START skaters=", all_skaters.size(), " puck=", puck != null)
+    print("ULTRABLADE_DEMO_START skaters=", all_skaters.size(), " puck=", puck != null, " muted=", audio_muted)
 
 func _process_demo(delta: float) -> void:
     demo_frames += 1
