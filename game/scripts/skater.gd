@@ -61,12 +61,14 @@ var hit_flash = 0.0
 var invuln = 0.0
 var boost_fx = 0.0
 var body_check_cd = 0.0
+var _grounded := true
 
 var ai_timer = 0.0
 var ai_decision = 0.11
 var ai_wander = 0.0
 var rng = RandomNumberGenerator.new()
 var team_color = Color(0.15, 0.9, 1.0)
+var team_color_override := Color.TRANSPARENT
 var role_color = Color(0.7, 0.9, 1.0)
 var home_z = -27.5
 
@@ -92,7 +94,10 @@ func setup(p_main: Node, p_team: int, p_role: String, p_goalie: bool, p_player: 
     is_player = p_player
     is_controlled = p_player
     display_name = _name_for_role(role, idx)
-    team_color = Color(0.1, 0.85, 1.0) if team_id == TEAM_BLUE else Color(1.0, 0.16, 0.38)
+    if team_color_override.a > 0.01:
+        team_color = team_color_override
+    else:
+        team_color = Color(0.1, 0.85, 1.0) if team_id == TEAM_BLUE else Color(1.0, 0.16, 0.38)
     role_color = _role_color(role)
     rng.seed = 3341 + idx * 97 + team_id * 31
     ai_decision = 0.10 + rng.randf() * 0.05
@@ -117,6 +122,19 @@ func setup(p_main: Node, p_team: int, p_role: String, p_goalie: bool, p_player: 
     _build_visual()
     _build_health_bar()
     _build_player_ring()
+
+func set_team_color(new_color: Color) -> void:
+    team_color = new_color
+    if model and model.has_method("set_team_color"):
+        model.set_team_color(team_color)
+    elif model and model.has_method("setup"):
+        model.setup(team_color, role, is_player)
+    if _hp_fill and _hp_fill.material_override is StandardMaterial3D:
+        var hp_mat := _hp_fill.material_override as StandardMaterial3D
+        hp_mat.albedo_color = team_color
+        hp_mat.emission = team_color
+    if _name_tag:
+        _name_tag.modulate = team_color
 
 func _ready() -> void:
     _spawn_transform = transform
@@ -338,7 +356,7 @@ func _read_player_input(delta: float) -> void:
     if want_boost and boost_fx <= 0.0:
         boost_fx = 0.2
         boost_started.emit(self)
-    if (Input.is_physical_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SPACE)) and is_on_floor():
+    if (Input.is_physical_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SPACE)) and _grounded:
         jump_requested = true
     if (Input.is_physical_key_pressed(KEY_E) or Input.is_key_pressed(KEY_E)):
         if carrying and shoot_lock <= 0.0:
@@ -521,19 +539,38 @@ func _apply_movement(delta: float) -> void:
     hv = hv.move_toward(target_velocity, accel * delta)
     velocity.x = hv.x
     velocity.z = hv.z
-    if not is_on_floor():
-        velocity.y -= GRAVITY * delta
-    if jump_requested and is_on_floor():
+    if jump_requested and _grounded:
         velocity.y = JUMP_SPEED
-        jump_requested = false
+        _grounded = false
         jumped.emit(self)
+    elif _grounded:
+        velocity.y = 0.0
+    else:
+        velocity.y -= GRAVITY * delta
     move_and_slide()
     jump_requested = false
-    if global_position.y < 0.0:
-        global_position.y = 0.0
-        velocity.y = 0.0
-    # Safety rail: keep skaters off the outer glass even if a board collider is missing.
+    # The bowl is a height field, not a flat plane. Snap to the curved surface;
+    # airborne skaters land on whichever bank/lane is beneath them.
     _clamp_to_drome()
+    var surface_y := 0.0
+    if main and main.has_method("get_surface_height"):
+        surface_y = float(main.get_surface_height(global_position.x, global_position.z))
+    if _grounded:
+        global_position.y = surface_y
+        velocity.y = 0.0
+    elif velocity.y <= 0.0 and global_position.y <= surface_y + 0.12:
+        global_position.y = surface_y
+        velocity.y = 0.0
+        _grounded = true
+    if global_position.y < -2.0:
+        global_position.y = surface_y
+        velocity.y = 0.0
+        _grounded = true
+    if model and model.has_method("set_surface_normal"):
+        if _grounded and main and main.has_method("get_surface_normal"):
+            model.set_surface_normal(main.get_surface_normal(global_position.x, global_position.z))
+        else:
+            model.set_surface_normal(Vector3.UP)
     if move_input.length() > 0.15:
         var desired_yaw = atan2(-move_input.x, -move_input.z)
         rotation.y = lerp_angle(rotation.y, desired_yaw, minf(1.0, TURN_RATE * delta))
@@ -571,7 +608,7 @@ func _update_visual_state(delta: float) -> void:
         st = "down"
     elif action_lock > 0.25:
         st = "slash" if heavy_cd <= 0.0 else "heavy"
-    elif not is_on_floor():
+    elif not _grounded:
         st = "jump"
     elif speed > 16.0:
         st = "sprint"
@@ -739,6 +776,7 @@ func respawn(at: Transform3D) -> void:
     shoot_charge = 0.0
     want_boost = false
     visible = true
+    _grounded = true
     if _collision:
         _collision.disabled = false
     set_collision_layer_value(2, true)
@@ -778,6 +816,7 @@ func reset_round(at: Transform3D) -> void:
     shoot_charge = 0.0
     action_lock = 0.2
     invuln = 0.8
+    _grounded = true
     if model and model.has_method("play"):
         model.play("idle", 0.0)
     _anim_state = ""

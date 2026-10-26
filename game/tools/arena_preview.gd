@@ -111,6 +111,11 @@ func _run_selftest() -> bool:
 	_check(mesh_stats["tris"] < 60000, "triangles < 60k (got %d)" % mesh_stats["tris"], failures, checks)
 	_check(mesh_stats["lights"] >= 1, "at least one light", failures, checks)
 	_check(mesh_stats["multimesh_instances"] > 500, "crowd MultiMesh > 500 instances (got %d)" % mesh_stats["multimesh_instances"], failures, checks)
+	var floor_mi := root.find_child("IceFloor", true, false) as MeshInstance3D
+	var bowl_ok := false
+	if floor_mi != null and floor_mi.mesh != null:
+		bowl_ok = floor_mi.mesh.get_aabb().size.y > 2.0
+	_check(bowl_ok, "IceFloor is a curved elliptical bowl (AABB height > 2 m)", failures, checks)
 	print("ARENA_STATS draws=%d tris=%d lights=%d crowd=%d static_bodies=%d shapes=%d" % [mesh_stats["draws"], mesh_stats["tris"], mesh_stats["lights"], mesh_stats["multimesh_instances"], collider_stats["static_bodies"], collider_stats["shapes"]])
 	print("ARENA_SPAWNS blue=%d red=%d boost=%d hazards=%d player_goal_z=%.1f enemy_goal_z=%.1f" % [spawn_blue.size(), spawn_red.size(), boost_pads.size(), hazards.size(), -30.5, 30.5])
 	print("ARENA_CHECKS passed=%d failed=%d" % [int(checks["total"]) - failures.size(), failures.size()])

@@ -18,6 +18,7 @@ func _run() -> void:
     var original_master: float = main.master_volume
     var original_music: float = main.music_volume
     var original_sfx: float = main.sfx_volume
+    var original_muted: bool = main.audio_muted
     main.hud.volume_sliders["master"].value = 65.0
     main.hud.volume_sliders["music"].value = 50.0
     main.hud.volume_sliders["sfx"].value = 80.0
@@ -34,6 +35,10 @@ func _run() -> void:
     main._on_volume_changed("master", original_master)
     main._on_volume_changed("music", original_music)
     main._on_volume_changed("sfx", original_sfx)
+    main.audio_muted = original_muted
+    main._apply_audio_settings()
+    main._save_audio_settings()
+    main._sync_hud_audio()
     if main.audio != null:
         main.audio.free()
         main.audio = null

@@ -17,13 +17,17 @@
 | R | Restart from pause or end screen |
 | Enter | Start from the title; rematch from the end screen |
 
-Menu: mouse is visible. Field manual opens from the title screen. **Pause → AUDIO MIX** has
+Menu: mouse is visible. Click the **HOME** and **AWAY** squad buttons on the title screen to
+rotate the matchup (four squads per side, with live uniform/HUD/scoreboard colours). Field manual
+opens from the title screen. **Pause → AUDIO MIX** has
 MASTER, MUSIC and SFX sliders; volumes persist in `user://settings.cfg`. The game starts **muted** by
 default — press `M` to unmute. Gamepad support is not in this slice.
 
 ## Match rules
 
-- Blue **ICE SAINTS** vs Red **REDLINE SYNDICATE**
+- Four selectable home squads vs four away squads; default **ICE SAINTS vs REDLINE SYNDICATE**
+- THE VAULT is a curved elliptical bowl: use the banks to carry speed, attack from height and
+  jump hazards; the goal-to-goal centre lane is the low, flat route
 - 3 periods × 90 seconds; clock stops during goal sequences
 - 2 outfield skaters + 1 invulnerable goalie per side
 - A goal is 1 point. The killball is a charged rok that deals heavy damage on contact.

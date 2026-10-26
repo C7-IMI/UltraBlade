@@ -43,6 +43,23 @@ func _run() -> void:
     _check(main.all_skaters.size() == 6, "six_skaters_boot")
     _check(main.arena_data.get("bounds", {}).has("half_width"), "arena_contract_present")
     _check(main.get_drome_bounds().get("half_length", 0.0) == 30.0, "arena_bounds_30m")
+    # The drome must be a curved elliptical bowl, not a flat rectangle.
+    _check(absf(main.get_surface_height(0.0, 0.0)) < 0.02, "bowl_center_flat")
+    _check(main.get_surface_height(12.0, 0.0) > 1.0, "bowl_bank_rises")
+    _check(main.get_surface_height(0.0, 26.0) < 0.02, "bowl_goal_lane_flat")
+    _check(main.get_surface_normal(12.0, 0.0).y > 0.45, "bowl_bank_normal")
+    # Team diversity: four squads per side, live recolour and HUD identity.
+    _check(main.HOME_TEAMS.size() >= 4 and main.AWAY_TEAMS.size() >= 4, "team_catalog_has_four_per_side")
+    var home_before: int = main.home_team_index
+    var color_before: Color = main.blue_team[0].team_color
+    main._on_team_cycle_requested("home")
+    main._on_team_cycle_requested("away")
+    await process_frame
+    await process_frame
+    _check(main.home_team_index != home_before, "home_team_cycles")
+    _check(main.blue_team[0].team_color != color_before, "home_team_recolours_skaters")
+    _check(main.hud.blue_name_label.text == main.get_team_name(0), "hud_home_team_name")
+    _check(main.hud.red_name_label.text == main.get_team_name(1), "hud_away_team_name")
     main.start_match()
     main.state = 2 # PLAYING
     main.state_timer = 0.0
@@ -62,6 +79,14 @@ func _run() -> void:
         _key(KEY_W, false)
         await physics_frame
         _check(sk.global_position.distance_to(start) > 1.5, "wasd_moves_player")
+        # Land a skater on the skateable bank and verify the height-field snap.
+        var bank_y: float = main.get_surface_height(11.5, 0.0)
+        sk.global_position = Vector3(11.5, bank_y + 1.6, 0.0)
+        sk.velocity = Vector3.ZERO
+        sk._grounded = false
+        for i in range(20):
+            await physics_frame
+        _check(absf(sk.global_position.y - main.get_surface_height(sk.global_position.x, sk.global_position.z)) < 0.20, "skater_lands_on_bank")
     # Charged shot through the real input path.
     var puck = main.get_puck()
     puck.reset_to(sk.get_puck_anchor())
@@ -132,13 +157,20 @@ func _run() -> void:
     sk.hp = 100.0
     # Killball charger: carry the rok over the arena's charger.
     main.state = 2
+    sk.downed = false
+    sk.hp = 100.0
+    sk.invuln = 0.4
+    sk.velocity = Vector3.ZERO
+    sk._grounded = true
+    sk.global_position = Vector3(0.0, 0.0, 0.0)
     main.puck.set_physics_process(true)
     main.puck.reset_to(sk.get_puck_anchor())
     main.puck.attach_to(sk)
-    sk.global_position = Vector3(0.0, 0.0, 0.0)
-    for i in range(5):
+    for i in range(12):
         await process_frame
         await physics_frame
+    main._charger_cd = 0.0
+    main._check_killball_charger()
     _check(main.get_puck().is_charged(), "killball_charger_arms")
     # Pause/resume.
     main.pause_match()

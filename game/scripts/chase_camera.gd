@@ -22,6 +22,7 @@ var _goal_side = 1.0
 var _menu_t = 0.0
 var _initialized = false
 var _roll = 0.0
+var _height_source: Callable
 
 func _ready() -> void:
     camera = Camera3D.new()
@@ -56,6 +57,12 @@ func rotate_view(dx: float, dy: float) -> void:
 
 func add_shake(amount: float) -> void:
     _shake = maxf(_shake, amount)
+
+func set_height_source(source: Callable) -> void:
+    _height_source = source
+
+func _exit_tree() -> void:
+    _height_source = Callable()
 
 func get_flat_basis() -> Basis:
     return Basis(Vector3.UP, yaw)
@@ -107,6 +114,9 @@ func _process(delta: float) -> void:
             desired_pos = camera.global_position
             desired_look = camera.global_position - camera.global_basis.z * 10.0
             fov_target = 68.0
+    if _height_source.is_valid() and (mode == "chase" or mode == "goal"):
+        var terrain_y: float = float(_height_source.call(desired_pos.x, desired_pos.z))
+        desired_pos.y = maxf(desired_pos.y, terrain_y + 1.35)
     if not _initialized:
         _pos_smooth = desired_pos
         _look_smooth = desired_look

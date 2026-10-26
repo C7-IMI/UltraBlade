@@ -37,12 +37,22 @@ is presentation and feel: the ActionForge-animated skaters, a neon broadcast dro
 cinematics, impact feedback, a readable combat HUD, a minimap, kill feed and an original
 procedural score.
 
+THE VAULT is now a **curved elliptical bowl**, not a flat rink: a low goal-to-goal lane sweeps up
+into 4.2 m skateable banks on both sides, with a continuous elliptical rim and crowd bowl. Skaters
+climb and jump the banks, the camera clears the surface, and the rok rides the same height field.
+The shape is based on frame analysis of the original HyperBlade drome footage in
+[docs/HYPERBLADE-VIDEO-NOTES.md](docs/HYPERBLADE-VIDEO-NOTES.md).
+
 The skaters are deliberately lean and aggressive: gunmetal plating over a dark team suit, swept
 shoulder blades, spiked crown helmets, slit visors, long serrated jaks and low, combat-ready
 stances. Role builds exaggerate the silhouette — enforcers are broader and caged, runners are
 slight, and goalies carry heavy pads and blockers.
 
 ![Gameplay in THE VAULT](docs/media/gameplay.jpg)
+
+![Skater riding the banked bowl](docs/media/bank-ride.jpg)
+
+![Team selection: Cobalt Kings vs Solar Kings](docs/media/team-select.jpg)
 
 ![Character lineup: striker, enforcer, runner, anchor, goalie](docs/media/characters.jpg)
 
@@ -64,6 +74,7 @@ slight, and goalies carry heavy pads and blockers.
 | `M` | Mute / unmute |
 | `[` / `]` | Lower / raise master volume |
 | `Enter` | Start / rematch from the title or end screen |
+| `Mouse` — title menu | Click **HOME** / **AWAY** to rotate the matchup squad |
 
 Volume and mix are also available in the pause menu: **MASTER**, **MUSIC** and **SFX** sliders. Settings are persisted to `user://settings.cfg` between runs.
 
@@ -73,13 +84,15 @@ Volume and mix are also available in the pause menu: **MASTER**, **MUSIC** and *
 
 ## Match rules in this slice
 
-- **Blue: ICE SAINTS** vs **Red: REDLINE SYNDICATE**
+- **Four home squads** and **four away squads**, selectable from the title menu; the default is
+  **ICE SAINTS vs REDLINE SYNDICATE**
 - 2 outfield skaters + 1 invulnerable goalie per side
 - 3 × 90 s periods; clock stops during goals; 45 s sudden-death overtime on a tie
 - Goal = 1 point; the killball is the high-risk, high-damage option
 - Downed skaters are out until the next goal/period (reserve rotation)
 - **Annihilation:** both enemy forwards down + a goal ends the match immediately
-- One arena (**THE VAULT**), two teams, one AI difficulty profile — a vertical slice, not a full league
+- One arena (**THE VAULT**), eight league squads, one AI difficulty profile — a vertical slice,
+  not a full league
 
 ## Status
 

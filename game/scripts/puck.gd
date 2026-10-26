@@ -160,11 +160,15 @@ func _physics_process(delta: float) -> void:
             return
     if not visible:
         return
-    # Free movement
+    # Free movement, riding the same curved bowl surface as the skaters.
+    var surface := 0.0
+    if main and main.has_method("get_surface_height"):
+        surface = float(main.get_surface_height(global_position.x, global_position.z))
+    var floor_y := BASE_Y + surface
     velocity.y -= GRAVITY * delta
     global_position += velocity * delta
-    if global_position.y <= BASE_Y:
-        global_position.y = BASE_Y
+    if global_position.y <= floor_y:
+        global_position.y = floor_y
         if velocity.y < -2.0:
             velocity.y *= -0.28
         else:

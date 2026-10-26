@@ -24,44 +24,66 @@ quality claim beyond what is written here. Timestamps are local (America/Chicago
 | --- | --- | --- |
 | Headless boot/import | `godot_console.exe --headless --path game --import` | exit 0 |
 | Core selftest | `godot_console.exe --headless --path game -- --selftest` | exit 0; 18/18 checks; `ULTRABLADE_SELFTEST_OK checks=18 failures=[]` |
-| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **25/25** checks; `ULTRABLADE_INTEGRATION_OK checks=25 failures=[]` |
+| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **35/35** checks; `ULTRABLADE_INTEGRATION_OK checks=35 failures=[]`, no leak warnings on the final run |
 | AI demo | `godot_console.exe --headless --path game -- --demo-seconds 8 --demo` | exit 0; `ULTRABLADE_DEMO_OK ... state=goal ... score=0-1 ... saw_pickup=true saw_shot=true saw_hit=true saw_goal=true` |
 
 The integration test boots the real `main.tscn`, injects synthetic keyboard/mouse input through
 Godot's Input system, and checks:
 
 1. Main scene loads; six skaters exist; the arena contract returns bounds.
-2. The ActionForge skater model attaches to the player.
-3. `W` moves the controlled skater.
-4. A held/released left mouse press fires a charged shot (puck released with velocity > 12 m/s).
-5. A real puck crossing the enemy goal plane increments the blue score and enters the goal state
+2. The drome surface is curved: flat centre/goal lane, a bank > 1 m at x=12, an upward bank normal.
+3. Four home and four away squads exist; cycling teams recolours skaters and updates HUD names.
+4. The ActionForge skater model attaches to the player.
+5. `W` moves the controlled skater; a skater dropped above a bank lands on the height field.
+6. A held/released left mouse press fires a charged shot (puck released with velocity > 12 m/s).
+7. A real puck crossing the enemy goal plane increments the blue score and enters the goal state
    (no forced score call).
-6. The red goalie saves a centered shot.
-7. A slash damages an adjacent opponent.
-8. A turnstile hazard damages a skater standing in its arc.
-9. Skating through the killball charger arms the puck.
-10. Pause/resume changes state.
-11. Both enemy forwards down + a goal flags annihilation and ends the match.
-12. The pause menu has three audio sliders; moving MASTER updates the setting and the real
+8. The red goalie saves a centered shot.
+9. A slash damages an adjacent opponent.
+10. A turnstile hazard damages a skater standing in its arc.
+11. Skating through the killball charger arms the puck.
+12. Pause/resume changes state.
+13. Both enemy forwards down + a goal flags annihilation and ends the match.
+14. The pause menu has three audio sliders; moving MASTER updates the setting and the real
     AudioServer master bus to ~0.55.
-13. MUSIC is applied to its bus and persisted; the mute toggle toggles the real master bus.
+15. MUSIC is applied to its bus and persisted; the mute toggle toggles the real master bus.
+
+## Drome / video reference pass
+
+- Sources: [gameplay](https://www.youtube.com/watch?v=EpScHKYEEpE),
+  [league final](https://www.youtube.com/watch?v=FNt_1BBHiwE),
+  [1996 trailer](https://www.youtube.com/watch?v=iAJBpyQwRXo). Frame-by-frame notes are in
+  docs/HYPERBLADE-VIDEO-NOTES.md; reference video files live only in the gitignored
+  reference/hyperblade-videos directory.
+- Implemented: true elliptical outline, radial curved bowl floor, 4.2 m banks on both sides,
+  flat goal lane, rim rails, bank-aware skater/puck/camera movement, bank-riding model roll,
+  team-coloured surface zones, and four home/four away squads selected on the title screen.
+- Numerical evidence: get_surface_height(0,0)=0, get_surface_height(12,0)>1,
+  get_surface_height(0,26)<0.02; arena floor mesh AABB height > 2 m; integration
+  skater_lands_on_bank and bowl_bank_normal checks pass.
+- Captures: 07-bank-ride.png has the controlled skater at x=12, y=2.642 m with team-coloured
+  Cobalt Kings vs Solar Kings HUD; 06-team-select.png shows the title-screen squad selector.
 
 ## Repository hygiene
 
-- `python scripts/check_repo.py` → **PASS**: 138 UTF-8 text files with no BOM and no CR; 62 binary
-  files skipped; 14 relative Markdown links resolve; `CHECK_REPO_OK`.
+- `python scripts/check_repo.py` → **PASS**: 143 UTF-8 text files with no BOM and no CR; 64 binary
+  files skipped; 18 relative Markdown links resolve; `CHECK_REPO_OK`.
 
 ## Windowed presentation
 
 - `godot_console.exe --path game -- --capture` (windowed, Vulkan/Forward+, T600) → exit 0.
-- Four 1600×900 PNGs written to `artifacts/captures/`:
-  `01-menu.png`, `02-gameplay.png`, `03-goal.png`, `04-broadcast.png`.
+- Seven 1600×900 PNGs written to `artifacts/captures/`:
+  `01-menu.png`, `02-gameplay.png`, `03-goal.png`, `04-broadcast.png`, `05-pause.png`,
+  `06-team-select.png`, `07-bank-ride.png`.
 - `godot_console.exe --path game -s res://tools/volume_preview.gd` (windowed) → exit 0;
   `05-pause.png` captures the pause **AUDIO MIX** with MASTER 65%, MUSIC 50%, SFX 80%;
   compressed as `docs/media/pause.jpg`.
 - `godot_console.exe --path game -s res://tools/skater_preview.gd -- --capture` → exit 0;
   `lineup_front.png`, `duel_action.png`, `star_goalie_closeup.png`; compressed lineup used
   in the README as `docs/media/characters.jpg`.
+- `godot_console.exe --path game -s res://tools/team_bowl_preview.gd` (windowed) → exit 0;
+  `06-team-select.png` (Cobalt Kings vs Solar Kings) and `07-bank-ride.png` (controlled skater
+  at x=12, y=2.642 m). Compressed into `docs/media/team-select.jpg` and `docs/media/bank-ride.jpg`.
 - Volume/mix changes are saved to `user://settings.cfg` and applied to the Master/Music/SFX
   buses through `AudioDirector.set_volume/get_volume/set_muted`. Keyboard: `[` / `]` master,
   `M` mute.
@@ -72,7 +94,7 @@ Godot's Input system, and checks:
 
 | Subsystem | Exact command | Observed result |
 | --- | --- | --- |
-| Arena builder | `godot_console.exe --headless --quit-after 350 --path game res://tools/arena_preview.tscn -- --selftest` | exit 0, empty stderr; `ARENA_SELFTEST_OK`; 35/35 checks; **31 draws, 27,882 tris, 10 lights, 1,728 crowd instances, static_bodies=9, shapes=51**; goal areas at z=−30.5/+30.5; 4 spawn transforms per side; 4 boost pads; 4 hazards; bounds 16/30; no floor collider (match layer owns it) |
+| Arena builder | `godot_console.exe --headless --path game res://tools/arena_preview.tscn -- --selftest` | exit 0, empty stderr; `ARENA_SELFTEST_OK`; **36/36 checks**; **31 draws, 29,356 tris, 10 lights, 1,340 crowd instances, static_bodies=9, shapes=51**; true elliptical outline; curved `IceFloor` bowl AABB height > 2 m; goal areas at z=−30.5/+30.5; 4 spawn transforms per side; 4 boost pads; 4 hazards; bounds 16/30; no floor collider (match layer owns it) |
 | ActionForge skater integration | `godot_console.exe --headless --path game -s res://tools/skater_preview.gd` | exit 0, empty stderr; `SKATER_SELFTEST_PASS checks=93`; 20 clips; cold library 37.5 ms, cached 0.001 ms; per-model build 2.8–6.8 ms; 24 renderables/skater; 11 root-motion clips stripped. Combat-idle stance uses `sword_idle`; measured heights 1.88–1.94 m after the aggressive silhouette pass. |
 | ActionForge skater preview scene | `godot_console.exe --headless --path game --quit-after 120 res://tools/skater_preview.tscn` | exit 0 |
 | Procedural audio | `godot_console.exe --headless --path game -s res://tools/audio_preview.gd` | `[AUDIO_PREVIEW] checks=121 fails=0`, `UB_AUDIO_PREVIEW_OK`, exit 0; 31 WAVs / 12.26 MB; 44.1 kHz 16-bit PCM; loops tagged forward |
@@ -85,10 +107,11 @@ Godot's Input system, and checks:
 - `build\UltraBlade.exe --headless -- --selftest` → exit 0; same 18/18 marker.
 - The export uses the pinned 4.7.2 Windows Desktop template from this machine.
 
-Final export: **124,300,448 bytes**, SHA-256
-`FBA94B5C52B008BA5805CC2EC1B73EB79835BFD4533BAB29AF9C5E668DE0627A` (2026-10-26, aggressive-model + default-mute rebuild).
-The exported binary was also run windowed in capture mode, and wrote four 1600×900 PNGs, proving
-that the packaged project loads its scene, arena, skater models, audio and HUD outside the editor.
+Final export: **124,313,760 bytes**, SHA-256
+`7FF9BC1B829BB9E2B1302FD6E4ED0D52490B9773043EF954E720536F39C321EE` (2026-10-26, elliptical-bowl + team-diversity rebuild).
+The exported binary was also run windowed in capture mode, and wrote the 1600×900 presentation
+PNGs, proving that the packaged project loads its bowl arena, skater models, audio and HUD outside
+the editor.
 The final build was re-smoked with `build\UltraBlade.exe --headless -- --selftest` → exit 0,
 18/18 checks.
 
@@ -113,8 +136,8 @@ The final build was re-smoked with `build\UltraBlade.exe --headless -- --selftes
 
 - Human feel, fun, balance and enough time to master the controls were **not** measured. I played
   through scripts and captures; the subjective tuning is a first pass and should be playtested.
-- No gamepad support, no multiplayer, no full league/gauntlet, no character select and no
-  long-session soak.
+- No gamepad support, no multiplayer, no full league/gauntlet and no per-character loadouts; team
+  selection is cosmetic identity only (same role stats across squads). No long-session soak.
 - AI teammate/enemy decision quality is good enough to generate shots, hits, saves and goals in
   the demo, not a deep sports AI.
 - The goal, pause and end-screen captures are staged/triggered states; actual match transitions

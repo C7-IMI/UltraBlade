@@ -22,7 +22,7 @@ casualties. Give them both.
 
 | Rule | Value |
 | --- | --- |
-| Teams | Blue (player) vs Red (AI) |
+| Teams | Home (player) vs Away (AI); four selectable squads per side |
 | Active skaters | 2 per side; 1 AI goalie per side (invulnerable) |
 | Periods | 3 × 90 seconds |
 | Clock | Stops after a goal, resumes on the next faceoff |
@@ -48,15 +48,21 @@ casualties. Give them both.
 
 ## Arena — "THE VAULT"
 
-A black-glass elliptical drome 62 m long, 34 m wide, with low curved boards and goals cut into each
-end. Center ice carries a giant animated league sigil. Visual language:
+A black-glass **elliptical bowl** 62 m long and 34 m wide at the rim, goals cut into each end. The
+goal-to-goal centre lane is flat; from x≈6.6 m the ice sweeps up into **4.2 m skateable banks** on
+both sides. Skaters, the rok, hazards and the camera all ride the same curved height field. The
+outline is a true ellipse, not a rounded rectangle, with a continuous rim rail and crowd bowl.
+Center ice carries a giant animated league sigil. Visual language:
 
-- Obsidian ice with cyan/magenta team light pools, wet reflections and skate trails.
+- Obsidian ice with cyan/magenta league-side light pools, wet reflections and skate trails.
 - Holographic crowd tiers, floating banner drones, overhead jumbotron.
-- Cyan = player/Blue, magenta/red = enemy/Red, amber = danger/killball.
+- Team-coloured uniforms/HUD accents per selected squad; amber = danger/killball.
 - Hard industrial typography, chrome + emissive trim; broadcast overlays.
-- Hazards: two rotating turnstiles at mid-ice, laser hurdle strips near each blue line, two boost
-  strips per side, and a central killball charger.
+- Hazards: two rotating turnstiles at the bank foot, laser hurdle strips in the flat lane, two
+  boost strips per side, and a central killball charger.
+
+The banked layout is based on frame analysis of the original HyperBlade footage; see
+[docs/HYPERBLADE-VIDEO-NOTES.md](HYPERBLADE-VIDEO-NOTES.md).
 
 ## Presentation
 
@@ -68,9 +74,11 @@ end. Center ice carries a giant animated league sigil. Visual language:
 
 ## Content in the slice
 
-One arena, two team identities (Blue "ICE SAINTS", Red "REDLINE SYNDICATE"), four AI outfield profiles
+One arena, four home squads (Ice Saints, Cobalt Kings, Glacier Guard, Neon Oracle) and four away
+squads (Redline Syndicate, Ember Legion, Crimson Choir, Solar Kings), four AI outfield profiles
 (Striker, Enforcer, Runner, Anchor) dressed by role, one goalie per team, one lethal hazard set.
-Roster names and colour variants are cosmetic in this slice.
+Squad identity is cosmetic in this slice: the same roles and stats wear different uniforms,
+HUD names and scoreboard accents.
 
 ## Modern additions that serve the core
 

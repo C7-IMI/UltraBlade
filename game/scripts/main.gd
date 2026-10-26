@@ -95,9 +95,34 @@ var audio_muted = true
 var _st_checks = 0
 var _st_failures: Array = []
 
-const TEAM_NAMES = ["ICE SAINTS", "REDLINE SYNDICATE"]
+const HOME_TEAMS = [
+    {"name": "ICE SAINTS", "color": Color(0.13, 0.90, 1.00)},
+    {"name": "COBALT KINGS", "color": Color(0.30, 0.55, 1.00)},
+    {"name": "GLACIER GUARD", "color": Color(0.18, 1.00, 0.82)},
+    {"name": "NEON ORACLE", "color": Color(0.55, 0.88, 1.00)},
+]
+const AWAY_TEAMS = [
+    {"name": "REDLINE SYNDICATE", "color": Color(1.00, 0.16, 0.38)},
+    {"name": "EMBER LEGION", "color": Color(1.00, 0.42, 0.14)},
+    {"name": "CRIMSON CHOIR", "color": Color(1.00, 0.22, 0.72)},
+    {"name": "SOLAR KINGS", "color": Color(1.00, 0.70, 0.10)},
+]
+var home_team_index := 0
+var away_team_index := 0
 const ROLE_NAMES = ["striker", "enforcer", "runner", "anchor"]
 const SETTINGS_PATH = "user://settings.cfg"
+const DROME_SHAPE = preload("res://scripts/drome_shape.gd")
+
+func get_team_name(team: int) -> String:
+    var entry: Dictionary = (HOME_TEAMS if team == BLUE else AWAY_TEAMS)[home_team_index if team == BLUE else away_team_index]
+    return String(entry["name"])
+
+func get_team_color(team: int) -> Color:
+    var entry: Dictionary = (HOME_TEAMS if team == BLUE else AWAY_TEAMS)[home_team_index if team == BLUE else away_team_index]
+    return Color(entry["color"])
+
+func get_matchup_label() -> String:
+    return get_team_name(BLUE) + "  VS  " + get_team_name(RED)
 
 func _ready() -> void:
     randomize()
@@ -535,12 +560,20 @@ func _make_skater(team: int, role: String, goalie: bool, player: bool, idx: int)
     var sk = skater_script.new()
     sk.name = ("Blue" if team == BLUE else "Red") + "_" + role + "_" + str(idx)
     entities_root.add_child(sk)
+    sk.team_color_override = get_team_color(team)
     sk.setup(self, team, role, goalie, player, idx)
     return sk
 
+func _ground_transform(t: Transform3D) -> Transform3D:
+    var out := t
+    out.origin.y += get_surface_height(out.origin.x, out.origin.z)
+    return out
+
 func _place_skater(sk: Node, t: Transform3D) -> void:
-    sk.set_spawn_transform(t)
-    sk.global_transform = t
+    var grounded := t
+    grounded.origin.y += get_surface_height(grounded.origin.x, grounded.origin.z)
+    sk.set_spawn_transform(grounded)
+    sk.global_transform = grounded
 
 func _get_spawn_points(key: String, team: int) -> Array:
     var out: Array = []
@@ -567,6 +600,8 @@ func _build_camera() -> void:
     add_child(camera_rig)
     camera_rig.set_mode("menu")
     camera_rig.set_target(null)
+    if camera_rig.has_method("set_height_source"):
+        camera_rig.set_height_source(Callable(self, "get_surface_height"))
 
 func _build_hud() -> void:
     if hud_script == null:
@@ -581,6 +616,25 @@ func _build_hud() -> void:
     hud.restart_requested.connect(_on_hud_restart)
     hud.quit_requested.connect(_on_hud_quit)
     hud.volume_changed.connect(_on_volume_changed)
+    if hud.has_signal("team_cycle_requested"):
+        hud.team_cycle_requested.connect(_on_team_cycle_requested)
+    _apply_team_identity()
+
+func _on_team_cycle_requested(side: String) -> void:
+    if side == "home":
+        home_team_index = (home_team_index + 1) % HOME_TEAMS.size()
+    else:
+        away_team_index = (away_team_index + 1) % AWAY_TEAMS.size()
+    _apply_team_identity()
+
+func _apply_team_identity() -> void:
+    for s in all_skaters:
+        if s != null and s.has_method("set_team_color"):
+            var uc := get_team_color(s.team_id)
+            if not s.team_color.is_equal_approx(uc):
+                s.set_team_color(uc)
+    if hud and hud.has_method("set_team_identity"):
+        hud.set_team_identity(get_team_name(BLUE), get_team_color(BLUE), get_team_name(RED), get_team_color(RED))
 
 func _build_audio() -> void:
     if audio_script == null or not audio_script.can_instantiate():
@@ -885,7 +939,7 @@ func start_match() -> void:
     state = COUNTDOWN
     state_timer = COUNTDOWN_SECONDS
     _last_countdown_mark = -1
-    _hud_announce("PERIOD 1", "ICE SAINTS  VS  REDLINE SYNDICATE", Color(0.85, 0.95, 1.0), 1.2)
+    _hud_announce("PERIOD 1", get_matchup_label(), Color(0.85, 0.95, 1.0), 1.2)
     _sfx("crowd_swell", -8.0)
     _music("match")
     if audio and audio.has_method("set_crowd"):
@@ -936,17 +990,17 @@ func _reset_round() -> void:
         if s == null:
             continue
         if s.is_goalie:
-            s.reset_round(Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0, -27.2)))
+            s.reset_round(_ground_transform(Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0, -27.2))))
         else:
-            s.reset_round(blue_spawns[i % blue_spawns.size()])
+            s.reset_round(_ground_transform(blue_spawns[i % blue_spawns.size()]))
     for i in range(red_team.size()):
         var s = red_team[i]
         if s == null:
             continue
         if s.is_goalie:
-            s.reset_round(Transform3D(Basis.IDENTITY, Vector3(0, 0, 27.2)))
+            s.reset_round(_ground_transform(Transform3D(Basis.IDENTITY, Vector3(0, 0, 27.2))))
         else:
-            s.reset_round(red_spawns[i % red_spawns.size()])
+            s.reset_round(_ground_transform(red_spawns[i % red_spawns.size()]))
     var new_control = null
     for s in blue_team:
         if s != null and not s.is_goalie and not s.downed:
@@ -1054,7 +1108,7 @@ func _tick_period_break(delta: float) -> void:
         _set_controlled(blue_team[0] if blue_team.size() > 0 else null)
         if camera_rig:
             camera_rig.set_mode("chase")
-        _hud_announce("PERIOD " + str(period), "ICE SAINTS  VS  REDLINE SYNDICATE", Color(0.85, 0.95, 1.0), 1.2)
+        _hud_announce("PERIOD " + str(period), get_matchup_label(), Color(0.85, 0.95, 1.0), 1.2)
         _sfx("crowd_swell", -8.0)
 
 func _begin_overtime() -> void:
@@ -1086,7 +1140,7 @@ func _end_match(reason: String) -> void:
         winner = last_goal_team
     var victory = winner == 0
     if hud:
-        var title_sub = ("ICE SAINTS WIN // " + reason) if victory else ("REDLINE SYNDICATE WINS // " + reason)
+        var title_sub = (get_team_name(BLUE) + " WIN // " + reason) if victory else (get_team_name(RED) + " WIN // " + reason)
         hud.show_end(victory, "%d  —  %d" % [score_blue, score_red], title_sub)
         hud.hide_menu()
     _music("victory" if victory else "defeat")
@@ -1256,6 +1310,12 @@ func is_overtime() -> bool:
 
 func get_drome_bounds() -> Dictionary:
     return arena_data.get("bounds", {"half_width": DROME_HALF_WIDTH, "half_length": DROME_HALF_LENGTH})
+
+func get_surface_height(x: float, z: float) -> float:
+    return DROME_SHAPE.height(x, z)
+
+func get_surface_normal(x: float, z: float) -> Vector3:
+    return DROME_SHAPE.normal(x, z)
 
 func get_own_goal_position(sk):
     var z = -DROME_HALF_LENGTH if sk.team_id == BLUE else DROME_HALF_LENGTH

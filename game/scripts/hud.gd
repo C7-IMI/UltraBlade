@@ -8,6 +8,7 @@ signal resume_requested
 signal restart_requested
 signal quit_requested
 signal volume_changed(channel: String, value: float)
+signal team_cycle_requested(side: String)
 
 const CYAN := Color("21e6ff")
 const MAGENTA := Color("ff2d6f")
@@ -40,6 +41,12 @@ var clock_label: Label
 var period_label: Label
 var blue_name_label: Label
 var red_name_label: Label
+var home_team_name := "ICE SAINTS"
+var away_team_name := "REDLINE SYNDICATE"
+var home_team_color := CYAN
+var away_team_color := MAGENTA
+var _home_team_btn: Button
+var _away_team_btn: Button
 var player_name_label: Label
 var player_role_label: Label
 var hp_bar: StatBar
@@ -120,6 +127,8 @@ class MenuBackdrop extends Control:
 
 class ScorePanel extends Control:
     var hud: UltraHUD
+    var home_color := Color("21e6ff")
+    var away_color := Color("ff2d6f")
     func _ready() -> void:
         mouse_filter = Control.MOUSE_FILTER_IGNORE
     func _draw() -> void:
@@ -127,9 +136,9 @@ class ScorePanel extends Control:
         var w := s.x
         var h := s.y
         draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w - 18, h), Vector2(18, h)]), Color(0.015, 0.03, 0.055, 0.93))
-        draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w * 0.5 - 52, 0), Vector2(w * 0.5 - 66, h), Vector2(0, h)]), Color(BLUE.r, BLUE.g, BLUE.b, 0.20))
-        draw_colored_polygon(PackedVector2Array([Vector2(w * 0.5 + 66, 0), Vector2(w, 0), Vector2(w, h), Vector2(w * 0.5 + 52, h)]), Color(MAGENTA.r, MAGENTA.g, MAGENTA.b, 0.18))
-        draw_line(Vector2(18, h - 1), Vector2(w - 18, h - 1), Color(CYAN.r, CYAN.g, CYAN.b, 0.55), 1.0)
+        draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w * 0.5 - 52, 0), Vector2(w * 0.5 - 66, h), Vector2(0, h)]), Color(home_color.r, home_color.g, home_color.b, 0.20))
+        draw_colored_polygon(PackedVector2Array([Vector2(w * 0.5 + 66, 0), Vector2(w, 0), Vector2(w, h), Vector2(w * 0.5 + 52, h)]), Color(away_color.r, away_color.g, away_color.b, 0.18))
+        draw_line(Vector2(18, h - 1), Vector2(w - 18, h - 1), Color(home_color.r, home_color.g, home_color.b, 0.55), 1.0)
         draw_line(Vector2(18, 1), Vector2(w - 18, 1), Color(1, 1, 1, 0.08), 1.0)
         # center notch
         draw_rect(Rect2(w * 0.5 - 54, 0, 1, h), Color(1, 1, 1, 0.1))
@@ -164,6 +173,8 @@ class StatBar extends Control:
 
 class Minimap extends Control:
     var hud: UltraHUD
+    var home_color := Color("21e6ff")
+    var away_color := Color("ff2d6f")
     func _ready() -> void:
         mouse_filter = Control.MOUSE_FILTER_IGNORE
     func _draw() -> void:
@@ -178,7 +189,7 @@ class Minimap extends Control:
         draw_colored_polygon(pts, Color(0.01, 0.04, 0.07, 0.78))
         var outline := PackedVector2Array(pts)
         outline.append(pts[0])
-        draw_polyline(outline, Color(CYAN.r, CYAN.g, CYAN.b, 0.5), 1.0)
+        draw_polyline(outline, Color(home_color.r, home_color.g, home_color.b, 0.5), 1.0)
         # center line + circles
         draw_line(Vector2(c.x, c.y - ry), Vector2(c.x, c.y + ry), Color(1, 1, 1, 0.14), 1.0)
         draw_arc(c + Vector2(0, ry * 0.58), 24.0, 0, TAU, 32, Color(1, 1, 1, 0.10), 1.0)
@@ -191,8 +202,8 @@ class Minimap extends Control:
         var hw: float = bounds.get("half_width", 16.0)
         var hl: float = bounds.get("half_length", 31.0)
         # goals
-        draw_rect(Rect2(c.x - 18, 2, 36, 5), Color(BLUE.r, BLUE.g, BLUE.b, 0.9))
-        draw_rect(Rect2(c.x - 18, s.y - 7, 36, 5), Color(MAGENTA.r, MAGENTA.g, MAGENTA.b, 0.9))
+        draw_rect(Rect2(c.x - 18, 2, 36, 5), Color(home_color.r, home_color.g, home_color.b, 0.9))
+        draw_rect(Rect2(c.x - 18, s.y - 7, 36, 5), Color(away_color.r, away_color.g, away_color.b, 0.9))
         var puck = m.get_puck()
         if puck != null:
             var p := _world_to_map(puck.global_position, c, rx, ry, hw, hl)
@@ -425,6 +436,12 @@ func _build_goal_overlay() -> void:
     goal_label = _label(goal_panel, "GOAL", 118, BONE, Vector2(0, 338), Vector2(1600, 140), HORIZONTAL_ALIGNMENT_CENTER, font_bold)
     goal_sub_label = _label(goal_panel, "ICE SAINTS", 22, CYAN, Vector2(0, 478), Vector2(1600, 30), HORIZONTAL_ALIGNMENT_CENTER, font_mono)
 
+func _on_home_team_pressed() -> void:
+    team_cycle_requested.emit("home")
+
+func _on_away_team_pressed() -> void:
+    team_cycle_requested.emit("away")
+
 func _build_menu() -> void:
     menu_root = Control.new()
     menu_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -439,6 +456,26 @@ func _build_menu() -> void:
     _label(menu_root, "BLADE", 168, BONE, Vector2(62, 266), Vector2(660, 160), HORIZONTAL_ALIGNMENT_LEFT, font_bold)
     _label(menu_root, "THE DROME REMEMBERS", 22, Color(CYAN.r, CYAN.g, CYAN.b, 0.92), Vector2(76, 438), Vector2(600, 30), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
     _label(menu_root, "A modern remake of the 1996 future-sport classic.\nTwo forwards. One rok. No rules worth keeping.", 17, Color(0.66, 0.78, 0.9, 0.78), Vector2(76, 488), Vector2(570, 64), HORIZONTAL_ALIGNMENT_LEFT, font_semi)
+    var team_panel := Panel.new()
+    team_panel.position = Vector2(940, 370)
+    team_panel.size = Vector2(390, 152)
+    var team_style := StyleBoxFlat.new()
+    team_style.bg_color = Color(0.008, 0.02, 0.035, 0.82)
+    team_style.border_color = Color(STEEL.r, STEEL.g, STEEL.b, 0.3)
+    team_style.border_width_left = 1
+    team_style.border_width_top = 1
+    team_style.border_width_right = 1
+    team_style.border_width_bottom = 1
+    team_style.corner_radius_top_left = 2
+    team_style.corner_radius_top_right = 2
+    team_panel.add_theme_stylebox_override("panel", team_style)
+    menu_root.add_child(team_panel)
+    _label(menu_root, "TEAM SELECT  //  EXHIBITION", 12, Color(STEEL.r, STEEL.g, STEEL.b, 0.85), Vector2(956, 388), Vector2(420, 20), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
+    _home_team_btn = _menu_button(menu_root, "HOME // " + home_team_name, Vector2(956, 414), Vector2(340, 36), false)
+    _home_team_btn.pressed.connect(_on_home_team_pressed)
+    _away_team_btn = _menu_button(menu_root, "AWAY // " + away_team_name, Vector2(956, 456), Vector2(340, 36), false)
+    _away_team_btn.pressed.connect(_on_away_team_pressed)
+    _label(menu_root, "CLICK TO ROTATE SQUAD", 10, Color(STEEL.r, STEEL.g, STEEL.b, 0.6), Vector2(956, 496), Vector2(360, 16), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
     var start_btn := _menu_button(menu_root, "ENTER THE DROME", Vector2(76, 590), Vector2(400, 58), true)
     start_btn.pressed.connect(func(): start_requested.emit())
     var controls_btn := _menu_button(menu_root, "CONTROLS // FIELD MANUAL", Vector2(76, 660), Vector2(400, 44), false)
@@ -447,7 +484,7 @@ func _build_menu() -> void:
     quit_btn.pressed.connect(func(): quit_requested.emit())
     _label(menu_root, "ENTER  //  START", 12, Color(STEEL.r, STEEL.g, STEEL.b, 0.9), Vector2(960, 826), Vector2(600, 18), HORIZONTAL_ALIGNMENT_RIGHT, font_mono)
     _label(menu_root, "A NON-COMMERCIAL HOMAGE TO HYPERBLADE (1996)", 10, Color(STEEL.r, STEEL.g, STEEL.b, 0.6), Vector2(76, 840), Vector2(700, 18), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
-    _label(menu_root, "BUILD 0.1 // GODOT 4.7.2 // PC", 10, Color(STEEL.r, STEEL.g, STEEL.b, 0.6), Vector2(960, 852), Vector2(600, 18), HORIZONTAL_ALIGNMENT_RIGHT, font_mono)
+    _label(menu_root, "BUILD 0.2 // GODOT 4.7.2 // PC", 10, Color(STEEL.r, STEEL.g, STEEL.b, 0.6), Vector2(960, 852), Vector2(600, 18), HORIZONTAL_ALIGNMENT_RIGHT, font_mono)
     # controls card
     menu_controls_panel = Panel.new()
     menu_controls_panel.anchor_left = 1.0
@@ -638,6 +675,34 @@ func _label(parent: Control, text: String, font_size: int, color: Color, pos: Ve
     parent.add_child(l)
     return l
 
+func set_team_identity(home_name: String, home_color: Color, away_name: String, away_color: Color) -> void:
+    home_team_name = home_name
+    away_team_name = away_name
+    home_team_color = home_color
+    away_team_color = away_color
+    if blue_name_label:
+        blue_name_label.text = home_name
+        blue_name_label.add_theme_color_override("font_color", home_color)
+    if red_name_label:
+        red_name_label.text = away_name
+        red_name_label.add_theme_color_override("font_color", away_color)
+    if score_panel:
+        score_panel.home_color = home_color
+        score_panel.away_color = away_color
+        score_panel.queue_redraw()
+    if minimap:
+        minimap.home_color = home_color
+        minimap.away_color = away_color
+        minimap.queue_redraw()
+    if _home_team_btn:
+        _home_team_btn.text = "HOME // " + home_name
+        _home_team_btn.add_theme_color_override("font_color", home_color)
+    if _away_team_btn:
+        _away_team_btn.text = "AWAY // " + away_name
+        _away_team_btn.add_theme_color_override("font_color", away_color)
+    if main and main.has_method("get_controlled_skater"):
+        _update_player_status()
+
 func show_menu() -> void:
     menu_root.visible = true
     hud_root.visible = false
@@ -689,10 +754,10 @@ func show_goal(team: int, scorer: String) -> void:
     announce_label.modulate.a = 0.0
     announce_sub_label.modulate.a = 0.0
     goal_panel.modulate.a = 1.0
-    var col := CYAN if team == 0 else MAGENTA
+    var col := home_team_color if team == 0 else away_team_color
     goal_label.text = "GOAL"
     goal_label.add_theme_color_override("font_color", BONE)
-    goal_sub_label.text = ("ICE SAINTS  //  " if team == 0 else "REDLINE SYNDICATE  //  ") + scorer
+    goal_sub_label.text = (home_team_name if team == 0 else away_team_name) + "  //  " + scorer
     goal_sub_label.add_theme_color_override("font_color", col)
     if goal_tween:
         goal_tween.kill()
@@ -775,8 +840,8 @@ func _update_score() -> void:
     cls_label.text = "DROME LEAGUE // " + ("OVERTIME" if main.is_overtime() else "EXHIBITION")
     if _score_flash > 0.0:
         var a := _score_flash * 4.0
-        score_blue_label.modulate = Color(1, 1, 1, 1).lerp(CYAN, a)
-        score_red_label.modulate = Color(1, 1, 1, 1).lerp(MAGENTA, a)
+        score_blue_label.modulate = Color(1, 1, 1, 1).lerp(home_team_color, a)
+        score_red_label.modulate = Color(1, 1, 1, 1).lerp(away_team_color, a)
     else:
         score_blue_label.modulate = Color.WHITE
         score_red_label.modulate = Color.WHITE
@@ -793,9 +858,10 @@ func _update_player_status() -> void:
         rokV_label.text = "ALL FORWARDS DOWN // RESERVE PENDING"
         return
     player_name_label.text = sk.display_name
-    player_role_label.text = sk.get_role_name().to_upper() + " // " + ("ICE SAINTS" if sk.team_id == 0 else "REDLINE SYNDICATE")
+    player_role_label.text = sk.get_role_name().to_upper() + " // " + (home_team_name if sk.team_id == 0 else away_team_name)
+    player_role_label.add_theme_color_override("font_color", home_team_color if sk.team_id == 0 else away_team_color)
     hp_bar.value = sk.hp / 100.0
-    hp_bar.color = CYAN if sk.hp > 35.0 else MAGENTA
+    hp_bar.color = home_team_color if sk.hp > 35.0 else MAGENTA
     hp_label.text = str(int(ceil(sk.hp)))
     boost_bar.value = sk.stamina / 100.0
     boost_bar.color = AMBER if sk.stamina < 22.0 else CYAN

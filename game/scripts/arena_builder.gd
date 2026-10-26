@@ -22,6 +22,7 @@ const COL_MAGENTA = Color(1.0, 0.176, 0.435)
 const COL_AMBER = Color(1.0, 0.690, 0.125)
 const COL_BONE = Color(0.918, 0.965, 1.0)
 
+const DROME_SHAPE = preload("res://scripts/drome_shape.gd")
 const SH_ICE = preload("res://shaders/arena_ice.gdshader")
 const SH_BOARDS = preload("res://shaders/arena_boards.gdshader")
 const SH_GLOW = preload("res://shaders/arena_glow.gdshader")
@@ -364,44 +365,24 @@ class _DromeBuilder extends RefCounted:
 		_crowd_normals = crowd["normals"]
 
 	func _ring_arrays(spacing: float) -> Dictionary:
+		# A true ellipse, not a rounded rectangle: the long sides and ends are one
+		# continuous curve, which is the shape that drives the whole bowl.
 		var pts = PackedVector3Array()
 		var nrm = PackedVector3Array()
 		var a = ARENA_HALF_W
 		var b = ARENA_HALF_L
-		var r = CORNER_R
-		var hx = a - r
-		var hz = b - r
-		var seg: Dictionary = _line_points(Vector2(a, -hz), Vector2(a, hz), Vector2(1.0, 0.0), spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _arc_points(Vector2(hx, hz), r, 0.0, PI * 0.5, spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _line_points(Vector2(hx, b), Vector2(-hx, b), Vector2(0.0, 1.0), spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _arc_points(Vector2(-hx, hz), r, PI * 0.5, PI * 0.5, spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _line_points(Vector2(-a, hz), Vector2(-a, -hz), Vector2(-1.0, 0.0), spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _arc_points(Vector2(-hx, -hz), r, PI, PI * 0.5, spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _line_points(Vector2(-hx, -b), Vector2(hx, -b), Vector2(0.0, -1.0), spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		seg = _arc_points(Vector2(hx, -hz), r, PI * 1.5, PI * 0.5, spacing)
-		pts.append_array(seg["p"])
-		nrm.append_array(seg["n"])
-		var count = pts.size()
-		var dists = PackedFloat32Array()
-		var total = 0.0
+		var count := maxi(48, int(round((a + b) * PI / spacing)))
+		var dists := PackedFloat32Array()
+		var total := 0.0
+		for i in count:
+			var theta := TAU * float(i) / float(count)
+			var p := Vector3(cos(theta) * a, 0.0, sin(theta) * b)
+			pts.append(p)
+			nrm.append(Vector3(cos(theta) / a, 0.0, sin(theta) / b).normalized())
 		for i in count:
 			dists.append(total)
 			total += pts[i].distance_to(pts[(i + 1) % count])
-		var u = PackedFloat32Array()
+		var u := PackedFloat32Array()
 		for i in count:
 			u.append(dists[i] / maxf(total, 0.0001))
 		return {"points": pts, "normals": nrm, "u": u, "length": total}
@@ -541,24 +522,50 @@ class _DromeBuilder extends RefCounted:
 # ---------------------------------------------------------------------------
 
 	func _build_floor() -> void:
+		# Radial elliptical grid. The flat goal lane and the curved banks are one
+		# continuous mesh so the drome reads as a bowl rather than a plane.
 		var st = _new_st()
-		var n = _outline.size()
+		var rings := 30
+		var segs := 120
 		var white = Color.WHITE
 		var uvz = Vector2.ZERO
-		for i in n:
-			var a = _outline[i]
-			var b = _outline[(i + 1) % n]
-			_tri(st, Vector3.ZERO, b, a, white, Vector3.UP, uvz, uvz, uvz)
+		var center := Vector3(0.0, DROME_SHAPE.height(0.0, 0.0), 0.0)
+		for i in segs:
+			var theta0 := TAU * float(i) / float(segs)
+			var theta1 := TAU * float(i + 1) / float(segs)
+			var p0 := _floor_point(theta0, 1.0 / float(rings))
+			var p1 := _floor_point(theta1, 1.0 / float(rings))
+			var n := DROME_SHAPE.normal((p0.x + p1.x) * 0.5, (p0.z + p1.z) * 0.5)
+			_tri(st, center, p0, p1, white, n, uvz, uvz, uvz)
+		for r in range(1, rings):
+			var r0 := float(r) / float(rings)
+			var r1 := float(r + 1) / float(rings)
+			for i in segs:
+				var theta0 := TAU * float(i) / float(segs)
+				var theta1 := TAU * float(i + 1) / float(segs)
+				var a := _floor_point(theta0, r0)
+				var b := _floor_point(theta1, r0)
+				var c := _floor_point(theta1, r1)
+				var d := _floor_point(theta0, r1)
+				var n := DROME_SHAPE.normal((a.x + c.x) * 0.5, (a.z + c.z) * 0.5)
+				_tri(st, a, b, c, white, n, uvz, uvz, uvz)
+				_tri(st, a, c, d, white, n, uvz, uvz, uvz)
+		# Flat goal-mouth floors beyond the elliptical rim.
 		for side in [-1.0, 1.0]:
-			var z0 = side * ARENA_HALF_L
-			var z1 = side * GOAL_BACK_Z
+			var z0: float = side * ARENA_HALF_L
+			var z1: float = side * GOAL_BACK_Z
 			_quad(st, Vector3(-GOAL_HALF_W, 0.0, z0), Vector3(GOAL_HALF_W, 0.0, z0), Vector3(GOAL_HALF_W, 0.0, z1), Vector3(-GOAL_HALF_W, 0.0, z1), white, uvz, uvz, uvz, uvz)
-		var mi = MeshInstance3D.new()
+		var mi := MeshInstance3D.new()
 		mi.name = "IceFloor"
 		mi.mesh = st.commit()
 		mi.material_override = _mats["ice"]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_root.add_child(mi)
+
+	func _floor_point(theta: float, radius: float) -> Vector3:
+		var x := cos(theta) * ARENA_HALF_W * radius
+		var z := sin(theta) * ARENA_HALF_L * radius
+		return Vector3(x, DROME_SHAPE.height(x, z), z)
 
 	func _build_boards() -> void:
 		var n = _outline.size()
@@ -567,12 +574,23 @@ class _DromeBuilder extends RefCounted:
 			var b = _outline[(i + 1) % n]
 			if _in_goal_opening(a) and _in_goal_opening(b):
 				continue
+			var ha := DROME_SHAPE.height(a.x, a.z)
+			var hb := DROME_SHAPE.height(b.x, b.z)
 			var col = _team_for_z(a.z)
 			var u0 = _outline_u[i]
 			var u1 = _outline_u[(i + 1) % n]
-			_quad(_boards_st, a, b, b + Vector3.UP * BOARD_H, a + Vector3.UP * BOARD_H, col, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0))
-			_prism(_glow_st, a + Vector3.UP * (BOARD_H + 0.035), b + Vector3.UP * (BOARD_H + 0.035), 0.09, 0.035, col * 0.7)
-			_prism(_glow_st, a + Vector3.UP * 0.045, b + Vector3.UP * 0.045, 0.045, 0.028, col * 0.38)
+			if maxf(ha, hb) > 0.20:
+				# The ice itself forms the wall here: cap the bank with an energy rail.
+				var aa := Vector3(a.x, ha + 0.055, a.z)
+				var bb := Vector3(b.x, hb + 0.055, b.z)
+				_prism(_glow_st, aa, bb, 0.085, 0.035, col * 0.72)
+				var aa2 := Vector3(a.x, ha + 0.22, a.z)
+				var bb2 := Vector3(b.x, hb + 0.22, b.z)
+				_prism(_glow_st, aa2, bb2, 0.025, 0.020, col * 0.34)
+			else:
+				_quad(_boards_st, a, b, b + Vector3.UP * BOARD_H, a + Vector3.UP * BOARD_H, col, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0))
+				_prism(_glow_st, a + Vector3.UP * (BOARD_H + 0.035), b + Vector3.UP * (BOARD_H + 0.035), 0.09, 0.035, col * 0.7)
+				_prism(_glow_st, a + Vector3.UP * 0.045, b + Vector3.UP * 0.045, 0.045, 0.028, col * 0.38)
 		for side in [-1.0, 1.0]:
 			var z = side * ARENA_HALF_L
 			var col = _team_color(side)
@@ -887,10 +905,10 @@ class _DromeBuilder extends RefCounted:
 
 	func _build_boost_pads() -> void:
 		var specs = [
-			[-11.0, -14.0, 1.0, "blue"],
-			[11.0, -14.0, 1.0, "blue"],
-			[-11.0, 14.0, -1.0, "red"],
-			[11.0, 14.0, -1.0, "red"],
+			[-5.4, -14.0, 1.0, "blue"],
+			[5.4, -14.0, 1.0, "blue"],
+			[-5.4, 14.0, -1.0, "red"],
+			[5.4, 14.0, -1.0, "red"],
 		]
 		for spec in specs:
 			var x: float = spec[0]
@@ -927,7 +945,8 @@ class _DromeBuilder extends RefCounted:
 			var sx = -1.0 if i == 0 else 1.0
 			var turnstile = Turnstile.new()
 			turnstile.name = "TurnstileLeft" if sx < 0.0 else "TurnstileRight"
-			turnstile.position = Vector3(sx * 7.5, 0.0, 0.0)
+			var turn_y := DROME_SHAPE.height(sx * 7.5, 0.0)
+			turnstile.position = Vector3(sx * 7.5, turn_y, 0.0)
 			turnstile.spin_speed = 1.9 if sx < 0.0 else -1.9
 			var arms = _new_st()
 			for k in 3:
@@ -977,8 +996,8 @@ class _DromeBuilder extends RefCounted:
 			var mat = _mats["laser"].duplicate() as ShaderMaterial
 			laser.material = mat
 			var beam_st = _new_st()
-			_quad(beam_st, Vector3(-12.6, 0.045, -0.36), Vector3(12.6, 0.045, -0.36), Vector3(12.6, 0.045, 0.36), Vector3(-12.6, 0.045, 0.36), Color.WHITE, Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0))
-			_quad(beam_st, Vector3(-12.6, 0.16, 0.0), Vector3(12.6, 0.16, 0.0), Vector3(12.6, 0.92, 0.0), Vector3(-12.6, 0.92, 0.0), Color.WHITE, Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0))
+			_quad(beam_st, Vector3(-5.8, 0.045, -0.36), Vector3(5.8, 0.045, -0.36), Vector3(5.8, 0.045, 0.36), Vector3(-5.8, 0.045, 0.36), Color.WHITE, Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0))
+			_quad(beam_st, Vector3(-5.8, 0.16, 0.0), Vector3(5.8, 0.16, 0.0), Vector3(5.8, 0.92, 0.0), Vector3(-5.8, 0.92, 0.0), Color.WHITE, Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0))
 			var beam_mi = MeshInstance3D.new()
 			beam_mi.name = "Beam"
 			beam_mi.mesh = beam_st.commit()
@@ -987,7 +1006,7 @@ class _DromeBuilder extends RefCounted:
 			laser.add_child(beam_mi)
 			laser.beam = beam_mi
 			for sx in [-1.0, 1.0]:
-				_prism(_glow_st, Vector3(sx * 12.8, 0.05, lz), Vector3(sx * 12.8, 1.0, lz), 0.09, 0.09, amber)
+				_prism(_glow_st, Vector3(sx * 6.3, 0.05, lz), Vector3(sx * 6.3, 1.0, lz), 0.09, 0.09, amber)
 				var emitter = StaticBody3D.new()
 				emitter.name = "Emitter"
 				emitter.collision_layer = 1
@@ -995,7 +1014,7 @@ class _DromeBuilder extends RefCounted:
 				var ebox = BoxShape3D.new()
 				ebox.size = Vector3(0.24, 1.0, 0.24)
 				ecs.shape = ebox
-				ecs.position = Vector3(sx * 12.8, 0.5, 0.0)
+				ecs.position = Vector3(sx * 6.3, 0.5, 0.0)
 				emitter.add_child(ecs)
 				laser.add_child(emitter)
 			_root.add_child(laser)

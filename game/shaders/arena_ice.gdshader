@@ -63,10 +63,10 @@ void fragment() {
 	float t = TIME * time_scale;
 	vec2 p = v_world.xz;
 
-	// --- rounded-rectangle distance to the boards ---------------------------------
-	vec2 rq = abs(p) - vec2(HW - CR, HL - CR);
-	float sdf = length(max(rq, 0.0)) + min(max(rq.x, rq.y), 0.0) - CR;
-	float contact = smoothstep(-3.6, -0.12, sdf);
+	// --- true elliptical drome edge ------------------------------------------------
+	vec2 en = p / vec2(HW, HL);
+	float er = length(en);
+	float contact = smoothstep(0.955, 1.0, er);
 
 	// --- black ice base ------------------------------------------------------------
 	float n1 = fbm2(p * 0.40);
@@ -153,7 +153,7 @@ void fragment() {
 	float grazing = pow(1.0 - clamp(view_dir.y, 0.0, 1.0), 4.0);
 	float wet = 0.45 + 0.55 * fbm2(vec2(p.x * 0.6, p.y * 0.05));
 	vec3 board_glow = mix(col_cyan, col_magenta, zone) * grazing * (0.05 + 0.20 * wet);
-	board_glow *= (1.0 - smoothstep(0.0, 12.0, -sdf)) * (1.0 - 0.4 * contact);
+	board_glow *= (0.35 + 0.65 * contact) * (1.0 - 0.4 * contact);
 
 	// --- composite -----------------------------------------------------------------
 	vec3 em = vec3(0.0);
@@ -169,7 +169,7 @@ void fragment() {
 	em += sig_col * sig * 1.75;
 	em += col_amber * charger_glow * 1.9;
 	em += board_glow;
-	em += mix(col_cyan, col_magenta, zone) * smoothstep(-0.55, -0.06, sdf) * 0.30;
+	em += mix(col_cyan, col_magenta, zone) * smoothstep(0.88, 0.995, er) * 0.30;
 
 	ALBEDO = base;
 	METALLIC = 0.45;

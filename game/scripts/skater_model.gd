@@ -152,6 +152,8 @@ var _current_clip := ""
 var _locomotion_state := "idle"
 var _locomotion_speed := 0.0
 var _lean := 0.0
+var _terrain_roll := 0.0
+var _surface_normal := Vector3.UP
 var _pending_state := ""
 var _pending_speed := 0.0
 
@@ -286,6 +288,50 @@ func _ready() -> void:
 		play("idle")
 
 ## Contract: configure colour/role/star. Safe before or after add_child().
+func set_surface_normal(normal: Vector3) -> void:
+	_surface_normal = normal.normalized() if normal.length_squared() > 0.001 else Vector3.UP
+
+func set_team_color(new_color: Color) -> void:
+	if _team_color.is_equal_approx(new_color):
+		return
+	_team_color = new_color
+	if not _built:
+		return
+	_apply_team_color_materials()
+
+func _apply_team_color_materials() -> void:
+	var team := _team_color
+	var trim_color := STAR_GOLD if _is_star else team
+	var steel := Color(0.22, 0.24, 0.28)
+	var dark := Color(0.045, 0.055, 0.075)
+	if _mats.has("armour"):
+		var armour := _mats["armour"] as StandardMaterial3D
+		armour.albedo_color = steel.lerp(team, 0.30)
+		armour.emission = team
+		armour.emission_energy_multiplier = 0.16
+	if _mats.has("armour_dark"):
+		var dark_mat := _mats["armour_dark"] as StandardMaterial3D
+		dark_mat.albedo_color = dark.lerp(team, 0.09)
+		dark_mat.emission = team
+		dark_mat.emission_energy_multiplier = 0.05
+	if _mats.has("trim"):
+		var trim := _mats["trim"] as StandardMaterial3D
+		trim.albedo_color = trim_color
+		trim.emission = trim_color
+	if _mats.has("visor"):
+		var visor := _mats["visor"] as StandardMaterial3D
+		visor.albedo_color = Color(team.r, team.g, team.b, 0.72)
+		visor.emission = team
+	if _mats.has("blade"):
+		var blade := _mats["blade"] as StandardMaterial3D
+		blade.albedo_color = team.darkened(0.04)
+		blade.emission = team
+	if _mats.has("glow"):
+		var glow := _mats["glow"] as StandardMaterial3D
+		glow.albedo_color = Color(team.r, team.g, team.b, 0.24)
+		glow.emission = team
+	_tint_mannequin()
+
 func setup(p_team_color: Color, p_role: String, p_is_star: bool) -> void:
 	_team_color = p_team_color
 	_role = p_role if ROLES.has(p_role) else "striker"
@@ -1052,7 +1098,10 @@ func _process(delta: float) -> void:
 	if _boosting:
 		target_lean -= 0.035
 	_lean = lerpf(_lean, target_lean, clampf(delta * 6.0, 0.0, 1.0))
+	var target_roll := clampf(_surface_normal.x * 0.85, -0.55, 0.55)
+	_terrain_roll = lerpf(_terrain_roll, target_roll, clampf(delta * 7.0, 0.0, 1.0))
 	_rig.rotation.x = _lean
+	_rig.rotation.z = _terrain_roll
 
 # =============================================================================
 # State machine
