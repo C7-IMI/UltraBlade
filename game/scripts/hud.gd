@@ -7,6 +7,7 @@ signal start_requested
 signal resume_requested
 signal restart_requested
 signal quit_requested
+signal volume_changed(channel: String, value: float)
 
 const CYAN := Color("21e6ff")
 const MAGENTA := Color("ff2d6f")
@@ -59,6 +60,9 @@ var kill_feed: VBoxContainer
 var feed_entries: Array = []
 var blue_pips: Array = []
 var red_pips: Array = []
+var volume_sliders: Dictionary = {}
+var volume_value_labels: Dictionary = {}
+var mute_status_label: Label
 var menu_controls_panel: Panel
 var _flash: ColorRect
 var _vignette: Vignette
@@ -466,7 +470,7 @@ func _build_menu() -> void:
     menu_controls_panel.add_theme_stylebox_override("panel", sb)
     menu_root.add_child(menu_controls_panel)
     _label(menu_controls_panel, "FIELD MANUAL", 14, CYAN, Vector2(24, 18), Vector2(300, 20), HORIZONTAL_ALIGNMENT_LEFT, font_bold)
-    _label(menu_controls_panel, "WASD  skate      MOUSE  look / aim\nLMB   slash / hold to charge shot\nRMB   heavy slash       SHIFT  boost\nSPACE jump             E  pass\nQ     throw killball    ESC  pause", 15, Color(0.68, 0.8, 0.92, 0.92), Vector2(24, 56), Vector2(500, 170), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
+    _label(menu_controls_panel, "WASD  skate      MOUSE  look / aim\nLMB   slash / hold to charge shot\nRMB   heavy slash       SHIFT  boost\nSPACE jump             E  pass\nQ     throw killball    ESC  pause\nM mute       [ / ]  master volume", 15, Color(0.68, 0.8, 0.92, 0.92), Vector2(24, 56), Vector2(500, 170), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
     _label(menu_controls_panel, "SCORE. DISMANTLE. REPEAT.", 11, Color(AMBER.r, AMBER.g, AMBER.b, 0.8), Vector2(24, 212), Vector2(500, 18), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
     menu_controls_panel.visible = false
 
@@ -488,8 +492,75 @@ func _build_pause() -> void:
     restart.pressed.connect(func(): restart_requested.emit())
     var quit := _menu_button(pause_root, "LEAVE DROME", Vector2(600, 596), Vector2(400, 38), false)
     quit.pressed.connect(func(): quit_requested.emit())
-    _label(pause_root, "ESC  //  RESUME", 12, Color(STEEL.r, STEEL.g, STEEL.b, 0.7), Vector2(0, 828), Vector2(1600, 18), HORIZONTAL_ALIGNMENT_CENTER, font_mono)
+    _build_audio_panel()
+    _label(pause_root, "ESC  //  RESUME   [ ]  MASTER   M  MUTE", 12, Color(STEEL.r, STEEL.g, STEEL.b, 0.7), Vector2(0, 828), Vector2(1600, 18), HORIZONTAL_ALIGNMENT_CENTER, font_mono)
     pause_root.visible = false
+
+func _build_audio_panel() -> void:
+    var panel := Panel.new()
+    panel.position = Vector2(570, 650)
+    panel.size = Vector2(460, 158)
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.008, 0.022, 0.04, 0.92)
+    style.border_color = Color(CYAN.r, CYAN.g, CYAN.b, 0.24)
+    style.border_width_left = 1
+    style.border_width_top = 1
+    style.border_width_right = 1
+    style.border_width_bottom = 1
+    panel.add_theme_stylebox_override("panel", style)
+    pause_root.add_child(panel)
+    _label(panel, "AUDIO MIX", 14, CYAN, Vector2(18, 10), Vector2(200, 20), HORIZONTAL_ALIGNMENT_LEFT, font_bold)
+    var rows := [["MASTER", 38], ["MUSIC", 72], ["SFX", 106]]
+    for row in rows:
+        var channel := String(row[0]).to_lower()
+        var y := int(row[1])
+        _label(panel, String(row[0]), 11, STEEL, Vector2(18, y), Vector2(80, 22), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
+        var slider := HSlider.new()
+        slider.position = Vector2(100, y + 2)
+        slider.size = Vector2(270, 20)
+        slider.min_value = 0.0
+        slider.max_value = 100.0
+        slider.step = 1.0
+        slider.value = 100.0
+        slider.focus_mode = Control.FOCUS_NONE
+        var track := StyleBoxFlat.new()
+        track.bg_color = Color(0.04, 0.09, 0.14, 0.95)
+        track.border_color = Color(CYAN.r, CYAN.g, CYAN.b, 0.25)
+        track.border_width_top = 1
+        track.border_width_bottom = 1
+        var fill := StyleBoxFlat.new()
+        fill.bg_color = Color(CYAN.r, CYAN.g, CYAN.b, 0.58)
+        var fill_hi := fill.duplicate() as StyleBoxFlat
+        fill_hi.bg_color = Color(CYAN.r, CYAN.g, CYAN.b, 0.9)
+        slider.add_theme_stylebox_override("slider", track)
+        slider.add_theme_stylebox_override("grabber_area", fill)
+        slider.add_theme_stylebox_override("grabber_area_highlight", fill_hi)
+        var value_label := _label(panel, "100%", 11, BONE, Vector2(378, y), Vector2(60, 22), HORIZONTAL_ALIGNMENT_RIGHT, font_mono)
+        slider.value_changed.connect(_on_volume_slider.bind(channel, value_label))
+        panel.add_child(slider)
+        volume_sliders[channel] = slider
+        volume_value_labels[channel] = value_label
+    mute_status_label = _label(panel, "M  //  MUTE", 10, STEEL, Vector2(18, 134), Vector2(300, 16), HORIZONTAL_ALIGNMENT_LEFT, font_mono)
+    _label(panel, "[  ]  MASTER", 10, Color(STEEL.r, STEEL.g, STEEL.b, 0.8), Vector2(300, 134), Vector2(140, 16), HORIZONTAL_ALIGNMENT_RIGHT, font_mono)
+
+func _on_volume_slider(value: float, channel: String, value_label: Label) -> void:
+    if value_label:
+        value_label.text = str(int(round(value))) + "%"
+    volume_changed.emit(channel, value / 100.0)
+
+func set_audio_settings(master: float, music: float, sfx: float, muted: bool) -> void:
+    var values := {"master": master, "music": music, "sfx": sfx}
+    for channel in values.keys():
+        var slider = volume_sliders.get(channel)
+        if slider != null:
+            slider.set_value_no_signal(clampf(float(values[channel]) * 100.0, 0.0, 100.0))
+        var value_label = volume_value_labels.get(channel)
+        if value_label != null:
+            value_label.text = str(int(round(clampf(float(values[channel]), 0.0, 1.0) * 100.0))) + "%"
+    if mute_status_label != null:
+        mute_status_label.text = "MUTED  //  PRESS M" if muted else "M  //  MUTE"
+        mute_status_label.add_theme_color_override("font_color", AMBER if muted else STEEL)
+
 
 func _build_end() -> void:
     end_root = Control.new()

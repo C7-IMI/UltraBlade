@@ -54,8 +54,13 @@ procedural score.
 | `Q` | Throw a charged killball at the nearest opponent |
 | `Esc` | Pause / resume |
 | `R` | Restart from pause or the end screen |
-| `M` | Mute audio |
+| `M` | Mute / unmute |
+| `[` / `]` | Lower / raise master volume |
 | `Enter` | Start / rematch from the title or end screen |
+
+Volume and mix are also available in the pause menu: **MASTER**, **MUSIC** and **SFX** sliders. Settings are persisted to `user://settings.cfg` between runs.
+
+![Pause audio mix](docs/media/pause.jpg)
 
 ## Match rules in this slice
 

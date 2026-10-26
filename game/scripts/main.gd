@@ -88,11 +88,16 @@ var match_shots = 0
 var match_hits = 0
 var match_kills = 0
 var match_goals = 0
+var master_volume = 0.8
+var music_volume = 1.0
+var sfx_volume = 1.0
+var audio_muted = false
 var _st_checks = 0
 var _st_failures: Array = []
 
 const TEAM_NAMES = ["ICE SAINTS", "REDLINE SYNDICATE"]
 const ROLE_NAMES = ["striker", "enforcer", "runner", "anchor"]
+const SETTINGS_PATH = "user://settings.cfg"
 
 func _ready() -> void:
     randomize()
@@ -104,6 +109,7 @@ func _ready() -> void:
     _build_camera()
     _build_hud()
     _build_audio()
+    _load_audio_settings()
     hud.show_menu()
     hud.set_hud_visible(false)
     _set_mouse_captured(false)
@@ -574,6 +580,7 @@ func _build_hud() -> void:
     hud.resume_requested.connect(_on_hud_resume)
     hud.restart_requested.connect(_on_hud_restart)
     hud.quit_requested.connect(_on_hud_quit)
+    hud.volume_changed.connect(_on_volume_changed)
 
 func _build_audio() -> void:
     if audio_script == null or not audio_script.can_instantiate():
@@ -585,6 +592,70 @@ func _build_audio() -> void:
         audio.play_music("match")
     if audio.has_method("set_crowd"):
         audio.set_crowd(0.22)
+
+func _load_audio_settings() -> void:
+    var cfg := ConfigFile.new()
+    if cfg.load(SETTINGS_PATH) == OK:
+        master_volume = clampf(float(cfg.get_value("audio", "master", master_volume)), 0.0, 1.0)
+        music_volume = clampf(float(cfg.get_value("audio", "music", music_volume)), 0.0, 1.0)
+        sfx_volume = clampf(float(cfg.get_value("audio", "sfx", sfx_volume)), 0.0, 1.0)
+        audio_muted = bool(cfg.get_value("audio", "muted", audio_muted))
+    _apply_audio_settings()
+    _sync_hud_audio()
+
+func _save_audio_settings() -> void:
+    var cfg := ConfigFile.new()
+    cfg.set_value("audio", "master", master_volume)
+    cfg.set_value("audio", "music", music_volume)
+    cfg.set_value("audio", "sfx", sfx_volume)
+    cfg.set_value("audio", "muted", audio_muted)
+    cfg.save(SETTINGS_PATH)
+
+func _apply_audio_settings() -> void:
+    if audio == null:
+        return
+    if audio.has_method("set_volume"):
+        audio.set_volume("master", master_volume)
+        audio.set_volume("music", music_volume)
+        audio.set_volume("sfx", sfx_volume)
+    if audio.has_method("set_muted"):
+        audio.set_muted(audio_muted)
+
+func _sync_hud_audio() -> void:
+    if hud and hud.has_method("set_audio_settings"):
+        hud.set_audio_settings(master_volume, music_volume, sfx_volume, audio_muted)
+
+func _toggle_mute() -> void:
+    audio_muted = not audio_muted
+    _apply_audio_settings()
+    _save_audio_settings()
+    _sync_hud_audio()
+    _hud_announce("MUTED" if audio_muted else "AUDIO ON", "PRESS M TO TOGGLE", AMBER if audio_muted else CYAN, 0.6)
+
+func _change_master_volume(delta: float) -> void:
+    master_volume = clampf(master_volume + delta, 0.0, 1.0)
+    if master_volume > 0.0:
+        audio_muted = false
+    _apply_audio_settings()
+    _save_audio_settings()
+    _sync_hud_audio()
+    _hud_announce("MASTER VOLUME", str(int(round(master_volume * 100.0))) + "%", CYAN, 0.45)
+
+func _on_volume_changed(channel: String, value: float) -> void:
+    match channel:
+        "master":
+            master_volume = clampf(value, 0.0, 1.0)
+        "music":
+            music_volume = clampf(value, 0.0, 1.0)
+        "sfx":
+            sfx_volume = clampf(value, 0.0, 1.0)
+        _:
+            return
+    if value > 0.0:
+        audio_muted = false
+    _apply_audio_settings()
+    _save_audio_settings()
+    _sync_hud_audio()
 
 func _process(delta: float) -> void:
     _elapsed += delta
@@ -770,8 +841,13 @@ func _unhandled_input(event: InputEvent) -> void:
                 start_match()
             return
         if key == KEY_M:
-            if audio and audio.has_method("toggle_mute"):
-                audio.toggle_mute()
+            _toggle_mute()
+            return
+        if key == KEY_BRACKETLEFT or key == KEY_MINUS:
+            _change_master_volume(-0.1)
+            return
+        if key == KEY_BRACKETRIGHT or key == KEY_EQUAL:
+            _change_master_volume(0.1)
             return
     if event is InputEventMouseMotion:
         if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and camera_rig != null:

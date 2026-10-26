@@ -20,7 +20,7 @@ quality claim beyond what is written here. Timestamps are local (America/Chicago
 | --- | --- | --- |
 | Headless boot/import | `godot_console.exe --headless --path game --import` | exit 0 |
 | Core selftest | `godot_console.exe --headless --path game -- --selftest` | exit 0; 18/18 checks; `ULTRABLADE_SELFTEST_OK checks=18 failures=[]` |
-| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; 18/18 checks; `ULTRABLADE_INTEGRATION_OK checks=18 failures=[]` |
+| End-to-end integration | `godot_console.exe --headless --path game -s res://tools/integration_test.gd` | exit 0; **25/25** checks; `ULTRABLADE_INTEGRATION_OK checks=25 failures=[]` |
 | AI demo | `godot_console.exe --headless --path game -- --demo-seconds 8 --demo` | exit 0; `ULTRABLADE_DEMO_OK ... state=goal ... score=0-1 ... saw_pickup=true saw_shot=true saw_hit=true saw_goal=true` |
 
 The integration test boots the real `main.tscn`, injects synthetic keyboard/mouse input through
@@ -38,17 +38,26 @@ Godot's Input system, and checks:
 9. Skating through the killball charger arms the puck.
 10. Pause/resume changes state.
 11. Both enemy forwards down + a goal flags annihilation and ends the match.
+12. The pause menu has three audio sliders; moving MASTER updates the setting and the real
+    AudioServer master bus to ~0.55.
+13. MUSIC is applied to its bus and persisted; the mute toggle toggles the real master bus.
 
 ## Repository hygiene
 
-- `python scripts/check_repo.py` → **PASS**: 136 UTF-8 text files with no BOM and no CR; 60 binary
-  files skipped; 12 relative Markdown links resolve; `CHECK_REPO_OK`.
+- `python scripts/check_repo.py` → **PASS**: 138 UTF-8 text files with no BOM and no CR; 61 binary
+  files skipped; 13 relative Markdown links resolve; `CHECK_REPO_OK`.
 
 ## Windowed presentation
 
 - `godot_console.exe --path game -- --capture` (windowed, Vulkan/Forward+, T600) → exit 0.
 - Four 1600×900 PNGs written to `artifacts/captures/`:
   `01-menu.png`, `02-gameplay.png`, `03-goal.png`, `04-broadcast.png`.
+- `godot_console.exe --path game -s res://tools/volume_preview.gd` (windowed) → exit 0;
+  `05-pause.png` captures the pause **AUDIO MIX** with MASTER 65%, MUSIC 50%, SFX 80%;
+  compressed as `docs/media/pause.jpg`.
+- Volume/mix changes are saved to `user://settings.cfg` and applied to the Master/Music/SFX
+  buses through `AudioDirector.set_volume/get_volume/set_muted`. Keyboard: `[` / `]` master,
+  `M` mute.
 - Compressed copies used in the README live in `docs/media/`.
 - The capture is evidence of presentation, not a subjective quality score.
 
@@ -69,8 +78,8 @@ Godot's Input system, and checks:
 - `build\UltraBlade.exe --headless -- --selftest` → exit 0; same 18/18 marker.
 - The export uses the pinned 4.7.2 Windows Desktop template from this machine.
 
-Final export: **124,288,408 bytes**, SHA-256
-`AC6B00C6F7DFA6068801A53BB8D5D1FDC3AB65834AA47A9327DB9D83D1A76158` (2026-10-26, final rebuild).
+Final export: **124,297,152 bytes**, SHA-256
+`C4943CBD6B788DAFD30DC332BA9BF5185632D6638B3E00F646348FC1D668384A` (2026-10-26, volume-control rebuild).
 The exported binary was also run windowed in capture mode, and wrote four 1600×900 PNGs, proving
 that the packaged project loads its scene, arena, skater models, audio and HUD outside the editor.
 The final build was re-smoked with `build\UltraBlade.exe --headless -- --selftest` → exit 0,

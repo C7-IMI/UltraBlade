@@ -268,12 +268,43 @@ func set_crowd(intensity: float) -> void:
 
 ## main.gd binds a mute key to this (optional extra, not part of the documented contract).
 func toggle_mute() -> void:
-	_muted = not _muted
-	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), _muted)
+	set_muted(not _muted)
+
+
+func set_muted(value: bool) -> void:
+	_muted = bool(value)
+	var index := AudioServer.get_bus_index("Master")
+	if index >= 0:
+		AudioServer.set_bus_mute(index, _muted)
 
 
 func is_muted() -> bool:
 	return _muted
+
+
+func set_volume(channel: String, linear: float) -> void:
+	var index := _volume_bus_index(channel)
+	if index < 0:
+		return
+	var value := clampf(float(linear), 0.0, 1.0)
+	AudioServer.set_bus_volume_db(index, linear_to_db(maxf(value, 0.0001)))
+
+
+func get_volume(channel: String) -> float:
+	var index := _volume_bus_index(channel)
+	if index < 0:
+		return 0.0
+	return clampf(db_to_linear(AudioServer.get_bus_volume_db(index)), 0.0, 1.0)
+
+
+func _volume_bus_index(channel: String) -> int:
+	var name := ""
+	match channel.to_lower():
+		"master", "all": name = "Master"
+		"music": name = "Music"
+		"sfx", "effects": name = "SFX"
+		_: return -1
+	return AudioServer.get_bus_index(name)
 
 
 # --------------------------------------------------------------------------

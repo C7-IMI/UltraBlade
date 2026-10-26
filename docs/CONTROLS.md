@@ -12,12 +12,14 @@
 | E | Pass to your AI teammate |
 | Q | Throw a charged killball at the nearest opponent |
 | M | Mute/unmute |
+| `[` / `]` | Lower / raise master volume |
 | Esc | Pause / resume; from the end screen, back to the title |
 | R | Restart from pause or end screen |
 | Enter | Start from the title; rematch from the end screen |
 
-Menu: mouse is visible. Field manual opens from the title screen. Gamepad support is not in this
-slice.
+Menu: mouse is visible. Field manual opens from the title screen. **Pause → AUDIO MIX** has
+MASTER, MUSIC and SFX sliders; volumes persist in `user://settings.cfg`. Gamepad support is not in
+this slice.
 
 ## Match rules
 

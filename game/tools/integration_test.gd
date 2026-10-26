@@ -155,9 +155,45 @@ func _run() -> void:
     _check(main.annihilation, "annihilation_flagged")
     main._tick_goal(2.0)
     _check(main.get_state_name() == "game_over", "annihilation_ends_match")
+    # Volume mix: the pause-screen sliders drive the real audio buses and persist.
+    main.pause_match()
+    _check(main.hud.volume_sliders.size() == 3, "three_volume_sliders")
+    var master_slider = main.hud.volume_sliders.get("master")
+    _check(master_slider != null, "master_volume_slider")
+    if master_slider != null:
+        master_slider.value = 55.0
+        await process_frame
+        _check(absf(main.master_volume - 0.55) < 0.01, "master_slider_updates_setting")
+        if main.audio != null and main.audio.has_method("get_volume"):
+            _check(absf(main.audio.get_volume("master") - 0.55) < 0.04, "master_volume_applied_to_bus")
+        master_slider.value = 80.0
+        await process_frame
+    main._on_volume_changed("music", 0.21)
+    _check(is_equal_approx(main.music_volume, 0.21), "music_volume_setting")
+    if main.audio != null and main.audio.has_method("get_volume"):
+        _check(absf(main.audio.get_volume("music") - 0.21) < 0.04, "music_volume_applied_to_bus")
+    main._toggle_mute()
+    if main.audio != null:
+        _check(main.audio.is_muted(), "mute_toggle")
+    main._toggle_mute()
+    main._on_volume_changed("music", 1.0)
     print("ULTRABLADE_INTEGRATION_", "OK" if failures.is_empty() else "FAIL", " checks=", checks, " failures=", failures)
     Engine.time_scale = 1.0
+    # Stop and free audio explicitly before freeing the scene; keeps the headless smoke clean.
+    if main.audio != null:
+        if main.audio.has_method("stop_all_sfx"):
+            main.audio.stop_all_sfx()
+        if main.audio.has_method("stop_music"):
+            main.audio.stop_music()
+        for audio_player in main.audio.find_children("*", "AudioStreamPlayer", true, false):
+            if audio_player is AudioStreamPlayer:
+                audio_player.stop()
+                audio_player.stream = null
+        main.audio.free()
+        main.audio = null
+        for i in range(5):
+            await process_frame
     main.queue_free()
-    await process_frame
-    await process_frame
+    for i in range(5):
+        await process_frame
     quit(0 if failures.is_empty() else 1)
